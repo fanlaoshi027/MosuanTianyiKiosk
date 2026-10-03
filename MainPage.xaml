@@ -1,5 +1,0 @@
-<Page x:Class="MosuanTianyiKiosk.MainPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:wv2="using:Microsoft.Web.WebView2.Core">
-  <Grid Background="Black">
-    <wv2:WebView2 x:Name="Browser" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-  </Grid>
-</Page>
