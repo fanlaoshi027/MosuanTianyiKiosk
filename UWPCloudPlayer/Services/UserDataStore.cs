@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
@@ -36,7 +37,7 @@ namespace UWPCloudPlayer.Services
         private static async Task SaveAsync<T>(string key, T value)
         {
             var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(
-                key + ".json", CreationCollisionOption.ReplaceExisting);
+                key + ".json", CreationCollisionOption.ReplaceExisting).AsTask();
 
             var serializer = new DataContractJsonSerializer(typeof(T));
             using (var stream = new MemoryStream())
@@ -51,7 +52,8 @@ namespace UWPCloudPlayer.Services
         {
             try
             {
-                var file = await ApplicationData.Current.LocalFolder.GetFileAsync(key + ".json").AsTask();
+                var file = await ApplicationData.Current.LocalFolder
+                    .GetFileAsync(key + ".json").AsTask();
                 var json = await FileIO.ReadTextAsync(file).AsTask();
                 var bytes = Encoding.UTF8.GetBytes(json);
                 var serializer = new DataContractJsonSerializer(typeof(T));
