@@ -12,6 +12,7 @@
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <Platforms>x86;x64;ARM64</Platforms>
     <ProjectTypeGuids>{BC8A1FFA-BEE3-4634-8014-F334798102B14};{C089C8C0-30E0-4A5E-9C2B-5D8E9A1D3D3D};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <OutputPath>bin\$(Configuration)\$(Platform)\</OutputPath>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <AppxPackageDir>$(OutputPath)AppPackages\</AppxPackageDir>
   </PropertyGroup>
