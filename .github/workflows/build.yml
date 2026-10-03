@@ -27,7 +27,9 @@ jobs:
 
       - name: Restore NuGet packages
         shell: pwsh
-        run: msbuild MosuanTianyiKiosk.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+        run: |
+          msbuild MosuanTianyiKiosk\MosuanTianyiKiosk.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Create temporary signing certificate
         shell: pwsh
@@ -42,7 +44,10 @@ jobs:
       - name: Build signed AppX
         shell: pwsh
         run: |
-          msbuild MosuanTianyiKiosk.sln /t:Build /p:Configuration=Release /p:Platform=x64 /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:PFX" /p:PackageCertificatePassword='Mosuan123!' /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 /p:AppxPackageDir="$env:GITHUB_WORKSPACE\AppPackages\"
+          $project = 'MosuanTianyiKiosk\MosuanTianyiKiosk.csproj'
+          $output = Join-Path $env:GITHUB_WORKSPACE 'AppPackages\'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          msbuild $project /t:Build /p:Configuration=Release /p:Platform=x64 /p:BaseOutputPath="$env:GITHUB_WORKSPACE\bin\" /p:OutputPath="$env:GITHUB_WORKSPACE\bin\x64\Release\" /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:PFX" /p:PackageCertificatePassword='Mosuan123!' /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 /p:AppxPackageDir="$output"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Collect installer files
