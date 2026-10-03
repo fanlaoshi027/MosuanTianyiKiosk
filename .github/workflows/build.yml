@@ -22,8 +22,16 @@ jobs:
             [IO.File]::WriteAllBytes((Join-Path $dir $name), [Convert]::FromBase64String($png))
           }
 
-      - name: Setup MSBuild
+      - name: Setup MSBuild x64
         uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Verify MSBuild architecture
+        shell: pwsh
+        run: |
+          msbuild -version
+          Write-Host "MSBuild path: $((Get-Command msbuild).Source)"
 
       - name: Restore NuGet packages
         shell: pwsh
