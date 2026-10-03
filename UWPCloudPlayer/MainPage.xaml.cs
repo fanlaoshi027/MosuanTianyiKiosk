@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.UI.ViewManagement;
@@ -61,7 +62,6 @@ namespace UWPCloudPlayer
             picker.FileTypeFilter.Add("*");
             var folder = await picker.PickSingleFolderAsync();
             if (folder == null) return;
-
             StorageApplicationPermissions.FutureAccessList.AddOrReplace("smb-root", folder);
             await LoadFolderAsync(folder);
         }
@@ -114,7 +114,7 @@ namespace UWPCloudPlayer
                 Player.MediaPlayer.Position = TimeSpan.FromSeconds(state.PositionSeconds);
         }
 
-        private async void MediaPlayer_MediaEnded(Windows.Media.PlaybackMediaPlayer sender, object args)
+        private async void MediaPlayer_MediaEnded(MediaPlayer sender, object args)
         {
             await SaveCurrentPositionAsync();
             if (_currentIndex + 1 < _currentQueue.Count)
@@ -124,10 +124,10 @@ namespace UWPCloudPlayer
             }
         }
 
-        private async void MediaPlayer_CurrentStateChanged(Windows.Media.PlaybackMediaPlayer sender, object args)
+        private async void MediaPlayer_CurrentStateChanged(MediaPlayer sender, object args)
         {
-            if (sender.CurrentState == Windows.Media.PlaybackMediaPlayerState.Paused ||
-                sender.CurrentState == Windows.Media.PlaybackMediaPlayerState.None)
+            if (sender.CurrentState == MediaPlayerState.Paused ||
+                sender.CurrentState == MediaPlayerState.None)
                 await SaveCurrentPositionAsync();
         }
 
