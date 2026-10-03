@@ -1,49 +1,61 @@
-name: Build UWP AppX
+name: Build Windows 10 UWP
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate temporary signing certificate
+      - name: Generate app assets
         shell: pwsh
         run: |
-          $pwd = ConvertTo-SecureString -String "MosuanBuild123!" -Force -AsPlainText
-          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Mosuan" -KeyUsage DigitalSignature -FriendlyName "Mosuan Tianyi Kiosk Test" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
-          Export-PfxCertificate -Cert $cert -FilePath "$PWD\MosuanTianyiKiosk_TemporaryKey.pfx" -Password $pwd | Out-Null
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'MosuanTianyiKiosk\Assets'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mOQU9b9DwACPwFuVWu4kgAAAABJRU5ErkJggg=='
+          foreach ($name in @('StoreLogo.png','Square150x150Logo.png','Square44x44Logo.png','Wide310x150Logo.png','Square310x310Logo.png')) {
+            [IO.File]::WriteAllBytes((Join-Path $dir $name), [Convert]::FromBase64String($png))
+          }
 
-      - name: Create placeholder package logos
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path Assets | Out-Null
-          $png = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScK7WQAAAABJRU5ErkJggg==')
-          foreach($n in @('StoreLogo.png','Square150x150Logo.png','Square44x44Logo.png','Wide310x150Logo.png','Square310x310Logo.png')) { [IO.File]::WriteAllBytes("Assets\$n",$png) }
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Build AppX
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: msbuild MosuanTianyiKiosk.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+
+      - name: Create temporary signing certificate
         shell: pwsh
         run: |
-          & msbuild .\MosuanTianyiKiosk.sln /restore /p:Configuration=Release /p:Platform=x64 /p:AppxBundle=Always /p:AppxPackageSigningEnabled=true /p:AppxPackageDir="$PWD\AppPackages\"
+          $password = ConvertTo-SecureString -String 'Mosuan123!' -Force -AsPlainText
+          $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=Mosuan' -KeyUsage DigitalSignature -FriendlyName 'Mosuan UWP Test Certificate' -CertStoreLocation 'Cert:\CurrentUser\My'
+          $pfx = Join-Path $env:GITHUB_WORKSPACE 'MosuanTest.pfx'
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath (Join-Path $env:GITHUB_WORKSPACE 'MosuanTest.cer') | Out-Null
+          "PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build signed AppX
+        shell: pwsh
+        run: |
+          msbuild MosuanTianyiKiosk.sln /t:Build /p:Configuration=Release /p:Platform=x64 /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:PFX" /p:PackageCertificatePassword='Mosuan123!' /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 /p:AppxPackageDir="$env:GITHUB_WORKSPACE\AppPackages\"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Upload AppX package
-        uses: actions/upload-artifact@v4
-        with:
-          name: MosuanTianyiKiosk-AppX-x64
-          path: AppPackages/**/*.msixbundle
-          if-no-files-found: error
+      - name: Collect installer files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Get-ChildItem -Path AppPackages -Recurse -File | Copy-Item -Destination artifacts -Force
+          Copy-Item MosuanTest.cer artifacts -Force
+          Compress-Archive -Path artifacts\* -DestinationPath MosuanTianyiKiosk-Windows10-x64.zip -Force
 
-      - name: Upload install files
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: MosuanTianyiKiosk-Install-x64
-          path: |
-            AppPackages/**
-            !AppPackages/**/*.msixbundle
-          if-no-files-found: warn
+          name: MosuanTianyiKiosk-Windows10-x64
+          path: MosuanTianyiKiosk-Windows10-x64.zip
+          if-no-files-found: error
