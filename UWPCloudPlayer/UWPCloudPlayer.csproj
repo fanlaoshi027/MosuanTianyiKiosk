@@ -26,6 +26,8 @@
     <Compile Include="Models\PlaylistModels.cs" />
     <Compile Include="Services\UserDataStore.cs" />
     <Compile Include="Player\ColorTemperatureSettings.cs" />
+    <Compile Include="Cloud\IFileProvider.cs" />
+    <Compile Include="Cloud\SmbFileProvider.cs" />
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
     <Page Include="MainPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Content Include="Package.appxmanifest" />
