@@ -1,0 +1,36 @@
+name: Build UWP Player
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build x64
+        shell: pwsh
+        run: |
+          msbuild UWPCloudPlayer/UWPCloudPlayer.csproj /restore /p:Configuration=Debug /p:Platform=x64 /p:AppxPackageSigningEnabled=false
+
+      - name: Collect package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $files = Get-ChildItem -Path . -Recurse -Include *.appx,*.msix,*.cer -ErrorAction SilentlyContinue
+          if ($files.Count -eq 0) { throw 'No AppX/MSIX package was generated.' }
+          $files | Copy-Item -Destination artifacts -Force
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UWPCloudPlayer-x64-v0.1
+          path: artifacts/*
+          if-no-files-found: error
