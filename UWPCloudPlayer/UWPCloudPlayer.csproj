@@ -24,7 +24,9 @@
     <Compile Include="App.xaml.cs" />
     <Compile Include="MainPage.xaml.cs" />
     <Compile Include="Models\PlaylistModels.cs" />
+    <Compile Include="Models\PlaybackState.cs" />
     <Compile Include="Services\UserDataStore.cs" />
+    <Compile Include="Services\PlaybackStateStore.cs" />
     <Compile Include="Player\ColorTemperatureSettings.cs" />
     <Compile Include="Cloud\IFileProvider.cs" />
     <Compile Include="Cloud\SmbFileProvider.cs" />
