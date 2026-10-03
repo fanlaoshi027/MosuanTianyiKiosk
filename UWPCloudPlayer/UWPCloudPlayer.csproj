@@ -53,7 +53,7 @@
     <Compile Include="Cloud\SmbFileProvider.cs" />
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
     <Page Include="MainPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
-    <Content Include="Package.appxmanifest" />
+    <AppxManifest Include="Package.appxmanifest" />
     <Content Include="UI\DarkTheme.xaml" />
   </ItemGroup>
   <ItemGroup>
