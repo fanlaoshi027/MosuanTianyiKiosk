@@ -31,32 +31,69 @@ jobs:
         run: |
           nuget restore Screenbox/Screenbox.slnx -NonInteractive
 
-      - name: Build x64 package
+      - name: Create temporary signing certificate
         shell: pwsh
         run: |
-          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /p:AppxBundlePlatforms=x64 /p:GenerateAppxPackageOnBuild=true /p:GenerateTestArtifacts=false /p:AppxPackageSigningEnabled=false /m
+          $publisher = 'CN=ABCDF790-DBE4-48F7-8204-32FCB69ADF9C'
+          $password = ConvertTo-SecureString 'ScreenboxTest2026!' -AsPlainText -Force
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $publisher `
+            -KeyUsage DigitalSignature `
+            -FriendlyName 'Screenbox Test Certificate' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -HashAlgorithm SHA256
+          Export-PfxCertificate -Cert $cert -FilePath "$env:RUNNER_TEMP\Screenbox.pfx" -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath "$env:RUNNER_TEMP\Screenbox.cer" | Out-Null
 
-      - name: Remove duplicate build outputs
+      - name: Build signed x64 AppX package
         shell: pwsh
         run: |
-          Get-ChildItem -Path Screenbox -Directory -Recurse -Filter bin | ForEach-Object {
-            Get-ChildItem $_.FullName -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'x64\\Release' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /p:AppxBundlePlatforms=x64 /p:GenerateAppxPackageOnBuild=true /p:GenerateTestArtifacts=false /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:RUNNER_TEMP\Screenbox.pfx" /p:PackageCertificatePassword='ScreenboxTest2026!' /m
 
-      - name: Show package sizes
+      - name: Locate AppX package
         shell: pwsh
         run: |
-          Get-ChildItem -Path Screenbox -Recurse -File -Include *.msix,*.msixbundle,*.appxbundle -ErrorAction SilentlyContinue |
-            Sort-Object Length -Descending |
-            Select-Object -First 20 FullName,@{N='MB';E={[math]::Round($_.Length/1MB,1)}} |
-            Format-Table -AutoSize
+          $packages = Get-ChildItem -Path Screenbox -Recurse -Directory -Filter AppPackages | ForEach-Object { Get-ChildItem $_.FullName -Recurse -File -Include *.msix,*.appx,*.cer,*.ps1 }
+          if (-not $packages) { throw 'No AppPackages output was generated.' }
+          $packages | Select-Object FullName, @{N='MB';E={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize
 
-      - name: Upload x64 package only
+      - name: Build simple installer package
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'ScreenboxInstaller'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $appPackages = Get-ChildItem -Path Screenbox -Recurse -Directory -Filter AppPackages | Select-Object -First 1
+          if (-not $appPackages) { throw 'AppPackages directory not found.' }
+          Copy-Item $appPackages.FullName -Destination (Join-Path $out 'AppPackages') -Recurse -Force
+          Copy-Item "$env:RUNNER_TEMP\Screenbox.cer" -Destination (Join-Path $out 'Screenbox.cer') -Force
+          @'
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$cert = Join-Path $root 'Screenbox.cer'
+Write-Host 'Installing Screenbox test certificate...'
+Import-Certificate -FilePath $cert -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+$pkg = Get-ChildItem (Join-Path $root 'AppPackages') -Recurse -File | Where-Object { $_.Extension -in '.msix','.appx' } | Select-Object -First 1
+if (-not $pkg) { throw 'No MSIX/AppX package found.' }
+Write-Host "Installing $($pkg.Name)..."
+Add-AppxPackage -Path $pkg.FullName -ForceApplicationShutdown
+Write-Host 'Screenbox installed successfully.'
+'@ | Set-Content -Path (Join-Path $out 'Install.ps1') -Encoding UTF8
+          @'
+Screenbox x64 测试安装包
+
+1. 解压整个 ZIP。
+2. 右键 Install.ps1，选择“使用 PowerShell 运行”。
+3. 如果 PowerShell 提示策略限制，请在当前 PowerShell 窗口执行：
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\Install.ps1
+
+这是开发测试证书签名版本，仅用于本机测试。
+'@ | Set-Content -Path (Join-Path $out '安装说明.txt') -Encoding UTF8
+
+      - name: Upload installer only
         uses: actions/upload-artifact@v4
         with:
-          name: screenbox-player-x64-slim
-          path: |
-            Screenbox/**/AppPackages/**/*.msix
-            Screenbox/**/AppPackages/**/*.msixbundle
-            Screenbox/**/AppPackages/**/*.appxbundle
+          name: screenbox-player-x64-installer
+          path: ${{ runner.temp }}/ScreenboxInstaller
           if-no-files-found: error
