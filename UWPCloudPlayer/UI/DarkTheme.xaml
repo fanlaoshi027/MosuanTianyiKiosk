@@ -1,0 +1,15 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#101114" />
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#17191D" />
+    <SolidColorBrush x:Key="PanelBackgroundSecondaryBrush" Color="#1D2025" />
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F2F3F5" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#A8ADB7" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#2B2F36" />
+    <Style TargetType="Button">
+        <Setter Property="Background" Value="#1D2025" />
+        <Setter Property="Foreground" Value="#F2F3F5" />
+        <Setter Property="BorderBrush" Value="#2B2F36" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="14,8" />
+    </Style>
+</ResourceDictionary>
