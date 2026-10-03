@@ -37,18 +37,18 @@ jobs:
 
       - name: Update package manifest
         shell: pwsh
-        run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
+        run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity Sideload
 
       - name: Update project version
         shell: pwsh
         run: .\Screenbox\scripts\Update-ProjectVersion.ps1
 
-      - name: Build app package
+      - name: Build signed x64 AppX package
         shell: pwsh
         run: |
           $deploy = 'C:\DeployOutput\'
           New-Item -ItemType Directory -Force -Path $deploy | Out-Null
-          msbuild Screenbox\Screenbox.csproj `
+          msbuild Screenbox\Screenbox\Screenbox.csproj `
             -restore `
             -p:RestoreConfigFile=Screenbox\nuget.config `
             -p:ContinuousIntegrationBuild=true `
@@ -56,7 +56,11 @@ jobs:
             -p:Platform=x64 `
             -p:AppxPackageDir=$deploy `
             -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:GenerateAppxPackageOnBuild=true
+            -p:AppxBundle=Never `
+            -p:AppxBundlePlatforms=x64 `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=true `
+            -p:GenerateTemporaryStoreCertificate=true
 
       - name: Verify package output
         shell: pwsh
@@ -65,16 +69,14 @@ jobs:
           $files | Select-Object FullName, @{N='MB';E={[math]::Round($_.Length / 1MB, 1)}} | Format-Table -AutoSize
           $testDir = Get-ChildItem -Path 'C:\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
           if (-not $testDir) { throw 'No *_Test sideload directory was generated.' }
-          $msix = Get-ChildItem -Path $testDir.FullName -File -Filter '*.msix' | Select-Object -First 1
+          $msix = Get-ChildItem -Path $testDir.FullName -Recurse -File -Filter '*.msix' | Select-Object -First 1
           if (-not $msix) { throw 'No .msix package was generated.' }
           Write-Host "Install package: $($msix.FullName)"
 
-      - name: Upload sideload installer
+      - name: Upload installable package
         uses: actions/upload-artifact@v7
         with:
           name: screenbox-player-x64-installer
-          path: |
-            C:\DeployOutput\*_Test\
-            !C:\DeployOutput\*_Test\*.msix
+          path: C:\DeployOutput\*_Test\
           compression-level: 0
           if-no-files-found: error
