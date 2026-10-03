@@ -33,6 +33,12 @@ jobs:
         with:
           msbuild-architecture: x64
 
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          msbuild .\UWPCloudPlayer\UWPCloudPlayer.csproj /t:Restore /p:Configuration=Debug /p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build and package UWP x64
         shell: pwsh
         run: |
