@@ -14,59 +14,30 @@
     <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <Platforms>x86;x64;ARM64</Platforms>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <BaseOutputPath>bin\</BaseOutputPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
-    <OutputPath>bin\x64\Debug\</OutputPath>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath><IntermediateOutputPath>obj\x64\Debug\</IntermediateOutputPath>
+    <DebugSymbols>true</DebugSymbols><DebugType>full</DebugType><Optimize>false</Optimize><PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
-    <OutputPath>bin\x64\Release\</OutputPath>
-    <DebugSymbols>false</DebugSymbols>
-    <Optimize>true</Optimize>
-    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath><IntermediateOutputPath>obj\x64\Release\</IntermediateOutputPath>
+    <DebugSymbols>false</DebugSymbols><Optimize>true</Optimize><PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <OutputPath>bin\x86\Debug\</OutputPath>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <OutputPath>bin\x86\Release\</OutputPath>
-    <Optimize>true</Optimize>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|ARM64' ">
-    <OutputPath>bin\ARM64\Debug\</OutputPath>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <PlatformTarget>ARM64</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|ARM64' ">
-    <OutputPath>bin\ARM64\Release\</OutputPath>
-    <Optimize>true</Optimize>
-    <PlatformTarget>ARM64</PlatformTarget>
-  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' "><OutputPath>bin\x86\Debug\</OutputPath><IntermediateOutputPath>obj\x86\Debug\</IntermediateOutputPath><PlatformTarget>x86</PlatformTarget></PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|ARM64' "><OutputPath>bin\ARM64\Debug\</OutputPath><IntermediateOutputPath>obj\ARM64\Debug\</IntermediateOutputPath><PlatformTarget>ARM64</PlatformTarget></PropertyGroup>
   <ItemGroup>
-    <Compile Include="App.xaml.cs" />
-    <Compile Include="MainPage.xaml.cs" />
-    <Compile Include="Models\PlaylistModels.cs" />
-    <Compile Include="Models\PlaybackState.cs" />
-    <Compile Include="Services\UserDataStore.cs" />
-    <Compile Include="Services\PlaybackStateStore.cs" />
-    <Compile Include="Player\ColorTemperatureSettings.cs" />
-    <Compile Include="Cloud\IFileProvider.cs" />
-    <Compile Include="Cloud\SmbFileProvider.cs" />
+    <Compile Include="App.xaml.cs" /><Compile Include="MainPage.xaml.cs" />
+    <Compile Include="Models\PlaylistModels.cs" /><Compile Include="Models\PlaybackState.cs" />
+    <Compile Include="Services\UserDataStore.cs" /><Compile Include="Services\PlaybackStateStore.cs" />
+    <Compile Include="Player\ColorTemperatureSettings.cs" /><Compile Include="Cloud\IFileProvider.cs" /><Compile Include="Cloud\SmbFileProvider.cs" />
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
     <Page Include="MainPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
-    <Content Include="Package.appxmanifest" />
-    <Content Include="UI\DarkTheme.xaml" />
+    <Content Include="Package.appxmanifest" /><Content Include="UI\DarkTheme.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.2.14" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets')" />
 </Project>
