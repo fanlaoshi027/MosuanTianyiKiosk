@@ -171,3 +171,5 @@ namespace UWPCloudPlayer
         }
     }
 }
+
+// Build verification marker: MediaPlayer API fix is on main.
