@@ -1,0 +1,46 @@
+name: Screenbox Player Build
+
+on:
+  push:
+    branches:
+      - screenbox-player
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          nuget restore Screenbox/Screenbox.slnx -NonInteractive
+
+      - name: Build x64
+        shell: pwsh
+        run: |
+          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /m
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenbox-player-x64
+          path: |
+            Screenbox/**/bin/x64/Release/**
+            Screenbox/**/AppPackages/**
+          if-no-files-found: warn
