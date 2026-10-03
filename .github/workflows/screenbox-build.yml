@@ -12,58 +12,69 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 1
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-      - name: Restore
-        shell: pwsh
-        run: nuget restore Screenbox/Screenbox.slnx -NonInteractive
-      - name: Create temporary signing certificate
-        shell: pwsh
-        run: |
-          $publisher = 'CN=ABCDF790-DBE4-48F7-8204-32FCB69ADF9C'
-          $password = ConvertTo-SecureString 'ScreenboxTest2026!' -AsPlainText -Force
-          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature -FriendlyName 'Screenbox Test Certificate' -CertStoreLocation 'Cert:\CurrentUser\My' -HashAlgorithm SHA256
-          Export-PfxCertificate -Cert $cert -FilePath "$env:RUNNER_TEMP\Screenbox.pfx" -Password $password | Out-Null
-          Export-Certificate -Cert $cert -FilePath "$env:RUNNER_TEMP\Screenbox.cer" | Out-Null
-      - name: Build signed x64 AppX package
-        shell: pwsh
-        run: |
-          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /p:AppxBundlePlatforms=x64 /p:GenerateAppxPackageOnBuild=true /p:GenerateTestArtifacts=false /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:RUNNER_TEMP\Screenbox.pfx" /p:PackageCertificatePassword='ScreenboxTest2026!' /m
-      - name: Collect real install packages
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:RUNNER_TEMP 'ScreenboxInstaller'
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          $packages = Get-ChildItem -Path Screenbox -Recurse -File | Where-Object { $_.Extension -in '.msix','.appx' }
-          if (-not $packages) { throw 'No .msix or .appx package was generated.' }
-          $packages | Select-Object FullName, @{N='MB';E={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize
-          foreach ($p in $packages) { Copy-Item $p.FullName -Destination (Join-Path $out $p.Name) -Force }
-          Copy-Item "$env:RUNNER_TEMP\Screenbox.cer" -Destination (Join-Path $out 'Screenbox.cer') -Force
-          @'
-$ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Certificate -FilePath (Join-Path $root 'Screenbox.cer') -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
-$packages = Get-ChildItem $root -File | Where-Object { $_.Extension -in '.msix','.appx' }
-if (-not $packages) { throw 'No MSIX/AppX package found.' }
-foreach ($pkg in $packages) { Add-AppxPackage -Path $pkg.FullName -ForceApplicationShutdown }
-Write-Host 'Screenbox installed successfully.'
-'@ | Set-Content -Path (Join-Path $out 'Install.ps1') -Encoding UTF8
-          @'
-Screenbox x64 开发测试安装包
 
-解压后运行 Install.ps1。该版本为开发测试证书签名，仅用于本机测试。
-'@ | Set-Content -Path (Join-Path $out '安装说明.txt') -Encoding UTF8
-      - name: Upload installer only
-        uses: actions/upload-artifact@v4
+      - name: Setup MSBuild.exe
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~\.nuget\packages
+          key: ${{ runner.os }}-nuget-screenbox-${{ hashFiles('Screenbox/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-screenbox-
+
+      - name: Update package manifest
+        shell: pwsh
+        run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
+
+      - name: Update project version
+        shell: pwsh
+        run: .\Screenbox\scripts\Update-ProjectVersion.ps1
+
+      - name: Build app package
+        shell: pwsh
+        run: |
+          $deploy = 'C:\DeployOutput\'
+          New-Item -ItemType Directory -Force -Path $deploy | Out-Null
+          msbuild Screenbox\Screenbox.csproj `
+            -restore `
+            -p:RestoreConfigFile=Screenbox\nuget.config `
+            -p:ContinuousIntegrationBuild=true `
+            -p:Configuration=Release `
+            -p:Platform=x64 `
+            -p:AppxPackageDir=$deploy `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:GenerateAppxPackageOnBuild=true
+
+      - name: Verify package output
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path 'C:\DeployOutput' -Recurse -File
+          $files | Select-Object FullName, @{N='MB';E={[math]::Round($_.Length / 1MB, 1)}} | Format-Table -AutoSize
+          $testDir = Get-ChildItem -Path 'C:\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
+          if (-not $testDir) { throw 'No *_Test sideload directory was generated.' }
+          $msix = Get-ChildItem -Path $testDir.FullName -File -Filter '*.msix' | Select-Object -First 1
+          if (-not $msix) { throw 'No .msix package was generated.' }
+          Write-Host "Install package: $($msix.FullName)"
+
+      - name: Upload sideload installer
+        uses: actions/upload-artifact@v7
         with:
           name: screenbox-player-x64-installer
-          path: ${{ runner.temp }}/ScreenboxInstaller/*
+          path: |
+            C:\DeployOutput\*_Test\
+            !C:\DeployOutput\*_Test\*.msix
+          compression-level: 0
           if-no-files-found: error
