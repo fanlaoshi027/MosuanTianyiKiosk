@@ -31,16 +31,32 @@ jobs:
         run: |
           nuget restore Screenbox/Screenbox.slnx -NonInteractive
 
-      - name: Build x64
+      - name: Build x64 package
         shell: pwsh
         run: |
-          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /m
+          msbuild Screenbox/Screenbox.slnx /restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:UapAppxPackageBuildMode=CI /p:AppxBundle=Never /p:AppxBundlePlatforms=x64 /p:GenerateAppxPackageOnBuild=true /p:GenerateTestArtifacts=false /p:AppxPackageSigningEnabled=false /m
 
-      - name: Upload build outputs
+      - name: Remove duplicate build outputs
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path Screenbox -Directory -Recurse -Filter bin | ForEach-Object {
+            Get-ChildItem $_.FullName -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'x64\\Release' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Show package sizes
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path Screenbox -Recurse -File -Include *.msix,*.msixbundle,*.appxbundle -ErrorAction SilentlyContinue |
+            Sort-Object Length -Descending |
+            Select-Object -First 20 FullName,@{N='MB';E={[math]::Round($_.Length/1MB,1)}} |
+            Format-Table -AutoSize
+
+      - name: Upload x64 package only
         uses: actions/upload-artifact@v4
         with:
-          name: screenbox-player-x64
+          name: screenbox-player-x64-slim
           path: |
-            Screenbox/**/bin/x64/Release/**
-            Screenbox/**/AppPackages/**
-          if-no-files-found: warn
+            Screenbox/**/AppPackages/**/*.msix
+            Screenbox/**/AppPackages/**/*.msixbundle
+            Screenbox/**/AppPackages/**/*.appxbundle
+          if-no-files-found: error
