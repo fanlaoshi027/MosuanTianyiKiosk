@@ -1,0 +1,6 @@
+<Page x:Class="UWPCloudPlayer.MainPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="#101010">
+    <Grid>
+        <MediaPlayerElement x:Name="Player" AreTransportControlsEnabled="True" AutoPlay="False" Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <Button x:Name="OpenButton" Content="打开 MP4" Click="OpenButton_Click" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Padding="18,10" />
+    </Grid>
+</Page>
