@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.Foundation;
 using Windows.Storage;
 using UWPCloudPlayer.Models;
 
@@ -36,15 +36,16 @@ namespace UWPCloudPlayer.Services
 
         private static async Task SaveAsync<T>(string key, T value)
         {
-            var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(
-                key + ".json", CreationCollisionOption.ReplaceExisting).AsTask();
+            var file = await AwaitOperation(
+                ApplicationData.Current.LocalFolder.CreateFileAsync(
+                    key + ".json", CreationCollisionOption.ReplaceExisting));
 
             var serializer = new DataContractJsonSerializer(typeof(T));
             using (var stream = new MemoryStream())
             {
                 serializer.WriteObject(stream, value);
                 var json = Encoding.UTF8.GetString(stream.ToArray(), 0, (int)stream.Length);
-                await FileIO.WriteTextAsync(file, json).AsTask();
+                await AwaitAction(FileIO.WriteTextAsync(file, json));
             }
         }
 
@@ -52,9 +53,9 @@ namespace UWPCloudPlayer.Services
         {
             try
             {
-                var file = await ApplicationData.Current.LocalFolder
-                    .GetFileAsync(key + ".json").AsTask();
-                var json = await FileIO.ReadTextAsync(file).AsTask();
+                var file = await AwaitOperation(
+                    ApplicationData.Current.LocalFolder.GetFileAsync(key + ".json"));
+                var json = await AwaitOperation(FileIO.ReadTextAsync(file));
                 var bytes = Encoding.UTF8.GetBytes(json);
                 var serializer = new DataContractJsonSerializer(typeof(T));
                 using (var stream = new MemoryStream(bytes))
@@ -66,6 +67,47 @@ namespace UWPCloudPlayer.Services
             {
                 return default(T);
             }
+        }
+
+        private static Task<T> AwaitOperation<T>(IAsyncOperation<T> operation)
+        {
+            var tcs = new TaskCompletionSource<T>();
+            operation.Completed = (op, status) =>
+            {
+                if (status == AsyncStatus.Completed)
+                {
+                    try { tcs.TrySetResult(op.GetResults()); }
+                    catch (System.Exception ex) { tcs.TrySetException(ex); }
+                }
+                else if (status == AsyncStatus.Canceled)
+                {
+                    tcs.TrySetCanceled();
+                }
+                else
+                {
+                    try { tcs.TrySetException(op.GetResults() == null ? new System.Exception("WinRT operation failed") : new System.Exception("WinRT operation failed")); }
+                    catch (System.Exception ex) { tcs.TrySetException(ex); }
+                }
+            };
+            return tcs.Task;
+        }
+
+        private static Task AwaitAction(IAsyncAction operation)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            operation.Completed = (op, status) =>
+            {
+                if (status == AsyncStatus.Completed)
+                    tcs.TrySetResult(true);
+                else if (status == AsyncStatus.Canceled)
+                    tcs.TrySetCanceled();
+                else
+                {
+                    try { op.GetResults(); }
+                    catch (System.Exception ex) { tcs.TrySetException(ex); }
+                }
+            };
+            return tcs.Task;
         }
     }
 }
