@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Storage;
+using Windows.Storage.AccessCache;
 using Windows.Storage.Pickers;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
@@ -42,7 +43,7 @@ namespace UWPCloudPlayer
 
         private async void OpenButton_Click(object sender, RoutedEventArgs e)
         {
-            var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.Videos };
+            var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
             picker.FileTypeFilter.Add(".mp4");
             picker.FileTypeFilter.Add(".m4v");
             picker.FileTypeFilter.Add(".mov");
@@ -126,8 +127,7 @@ namespace UWPCloudPlayer
 
         private async void MediaPlayer_CurrentStateChanged(MediaPlayer sender, object args)
         {
-            if (sender.CurrentState == MediaPlayerState.Paused ||
-                sender.CurrentState == MediaPlayerState.None)
+            if (sender.CurrentState == MediaPlayerState.Paused)
                 await SaveCurrentPositionAsync();
         }
 
@@ -171,5 +171,3 @@ namespace UWPCloudPlayer
         }
     }
 }
-
-// Build verification marker: MediaPlayer API fix is on main.
