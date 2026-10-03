@@ -1,0 +1,1 @@
+Screenbox bootstrap trigger.
