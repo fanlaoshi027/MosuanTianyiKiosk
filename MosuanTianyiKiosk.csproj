@@ -11,6 +11,7 @@
     <AppContainerApplication>true</AppContainerApplication>
     <RootNamespace>MosuanTianyiKiosk</RootNamespace>
     <AssemblyName>MosuanTianyiKiosk</AssemblyName>
+    <TargetFrameworks>uap10.0</TargetFrameworks>
     <TargetFrameworkIdentifier>.NETCore</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
     <NugetTargetMoniker>UAP,Version=v10.0</NugetTargetMoniker>
