@@ -43,7 +43,7 @@ namespace UWPCloudPlayer.Services
             {
                 serializer.WriteObject(stream, value);
                 var json = Encoding.UTF8.GetString(stream.ToArray(), 0, (int)stream.Length);
-                await FileIO.WriteTextAsync(file, json);
+                await FileIO.WriteTextAsync(file, json).AsTask();
             }
         }
 
@@ -51,8 +51,8 @@ namespace UWPCloudPlayer.Services
         {
             try
             {
-                var file = await ApplicationData.Current.LocalFolder.GetFileAsync(key + ".json");
-                var json = await FileIO.ReadTextAsync(file);
+                var file = await ApplicationData.Current.LocalFolder.GetFileAsync(key + ".json").AsTask();
+                var json = await FileIO.ReadTextAsync(file).AsTask();
                 var bytes = Encoding.UTF8.GetBytes(json);
                 var serializer = new DataContractJsonSerializer(typeof(T));
                 using (var stream = new MemoryStream(bytes))
