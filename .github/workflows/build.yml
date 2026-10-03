@@ -1,0 +1,49 @@
+name: Build UWP AppX
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate temporary signing certificate
+        shell: pwsh
+        run: |
+          $pwd = ConvertTo-SecureString -String "MosuanBuild123!" -Force -AsPlainText
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Mosuan" -KeyUsage DigitalSignature -FriendlyName "Mosuan Tianyi Kiosk Test" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+          Export-PfxCertificate -Cert $cert -FilePath "$PWD\MosuanTianyiKiosk_TemporaryKey.pfx" -Password $pwd | Out-Null
+
+      - name: Create placeholder package logos
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path Assets | Out-Null
+          $png = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScK7WQAAAABJRU5ErkJggg==')
+          foreach($n in @('StoreLogo.png','Square150x150Logo.png','Square44x44Logo.png','Wide310x150Logo.png','Square310x310Logo.png')) { [IO.File]::WriteAllBytes("Assets\$n",$png) }
+
+      - name: Build AppX
+        shell: pwsh
+        run: |
+          & msbuild .\MosuanTianyiKiosk.sln /restore /p:Configuration=Release /p:Platform=x64 /p:AppxBundle=Always /p:AppxPackageSigningEnabled=true /p:AppxPackageDir="$PWD\AppPackages\"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload AppX package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MosuanTianyiKiosk-AppX-x64
+          path: AppPackages/**/*.msixbundle
+          if-no-files-found: error
+
+      - name: Upload install files
+        uses: actions/upload-artifact@v4
+        with:
+          name: MosuanTianyiKiosk-Install-x64
+          path: |
+            AppPackages/**
+            !AppPackages/**/*.msixbundle
+          if-no-files-found: warn
