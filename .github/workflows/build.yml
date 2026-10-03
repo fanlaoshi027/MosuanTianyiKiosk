@@ -1,4 +1,4 @@
-name: Build Windows 10 UWP
+name: Build UWP Player
 
 on:
   push:
@@ -12,13 +12,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate app assets
+      - name: Generate UWP assets
         shell: pwsh
         run: |
-          $dir = Join-Path $env:GITHUB_WORKSPACE 'Assets'
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'UWPCloudPlayer\Assets'
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           $png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mOQU9b9DwACPwFuVWu4kgAAAABJRU5ErkJggg=='
-          foreach ($name in @('StoreLogo.png','Square150x150Logo.png','Square44x44Logo.png','Wide310x150Logo.png','Square310x310Logo.png')) {
+          foreach ($name in @('StoreLogo.png','Square150x150Logo.png','Square44x44Logo.png','Square71x71Logo.png')) {
             [IO.File]::WriteAllBytes((Join-Path $dir $name), [Convert]::FromBase64String($png))
           }
 
@@ -27,47 +27,26 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - name: Verify MSBuild architecture
-        shell: pwsh
-        run: |
-          msbuild -version
-          Write-Host "MSBuild path: $((Get-Command msbuild).Source)"
-
-      - name: Restore NuGet packages
-        shell: pwsh
-        run: |
-          msbuild .\MosuanTianyiKiosk.csproj /t:Restore /p:Configuration=Release /p:Platform=x64
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Create temporary signing certificate
-        shell: pwsh
-        run: |
-          $password = ConvertTo-SecureString -String 'Mosuan123!' -Force -AsPlainText
-          $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=Mosuan' -KeyUsage DigitalSignature -FriendlyName 'Mosuan UWP Test Certificate' -CertStoreLocation 'Cert:\CurrentUser\My'
-          $pfx = Join-Path $env:GITHUB_WORKSPACE 'MosuanTest.pfx'
-          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
-          Export-Certificate -Cert $cert -FilePath (Join-Path $env:GITHUB_WORKSPACE 'MosuanTest.cer') | Out-Null
-          "PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Build and package signed AppX
+      - name: Build and package UWP x64
         shell: pwsh
         run: |
           $output = Join-Path $env:GITHUB_WORKSPACE 'AppPackages\'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          msbuild .\MosuanTianyiKiosk.csproj /t:Build /p:Configuration=Release /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=true /p:PackageCertificateKeyFile="$env:PFX" /p:PackageCertificatePassword='Mosuan123!' /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 /p:AppxPackageDir="$output"
+          msbuild .\UWPCloudPlayer\UWPCloudPlayer.csproj /t:Build /p:Configuration=Debug /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false /p:AppxPackageDir="$output"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Collect installer files
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Get-ChildItem -Path AppPackages -Recurse -File | Copy-Item -Destination artifacts -Force
-          Copy-Item MosuanTest.cer artifacts -Force
-          Compress-Archive -Path artifacts\* -DestinationPath MosuanTianyiKiosk-Windows10-x64.zip -Force
+          $files = Get-ChildItem -Path AppPackages -Recurse -File -Include *.appx,*.msix,*.cer
+          if ($files.Count -eq 0) { throw 'No AppX/MSIX package was generated.' }
+          $files | Copy-Item -Destination artifacts -Force
+          Compress-Archive -Path artifacts\* -DestinationPath UWPCloudPlayer-x64-v0.1.zip -Force
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: MosuanTianyiKiosk-Windows10-x64
-          path: MosuanTianyiKiosk-Windows10-x64.zip
+          name: UWPCloudPlayer-x64-v0.1
+          path: UWPCloudPlayer-x64-v0.1.zip
           if-no-files-found: error
