@@ -1,0 +1,79 @@
+name: Bootstrap Screenbox Player
+
+on:
+  push:
+    branches: [screenbox-player]
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: ${{ !contains(github.event.head_commit.message, '[screenbox-imported]') }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: screenbox-player
+          fetch-depth: 1
+
+      - name: Clone upstream Screenbox
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/huynhsontung/Screenbox.git "$env:RUNNER_TEMP\Screenbox"
+
+      - name: Replace legacy player with Screenbox
+        shell: pwsh
+        run: |
+          $keep = @('.git', 'Archive')
+          Get-ChildItem -Force | Where-Object { $keep -notcontains $_.Name } | Remove-Item -Recurse -Force
+          $src = Join-Path $env:RUNNER_TEMP 'Screenbox'
+          Get-ChildItem -Force $src | Where-Object { $_.Name -ne '.git' } | Copy-Item -Destination . -Recurse -Force
+
+      - name: Add project README
+        shell: pwsh
+        run: |
+          @'
+# 樊老师功能播放器
+
+基于 Screenbox + LibVLC 的 UWP 网课播放器改造版。
+
+## 开发分支
+
+`screenbox-player`
+
+## 第一阶段
+
+- 原生 UWP
+- MP4 / H.264 / H.265
+- 本地文件播放
+- SMB 局域网
+- 播放列表
+- 收藏文件夹
+- 深色护眼界面
+
+## 第二阶段
+
+- 反色播放
+- 色温调节
+- 裁切 / 局部区域控制
+- 网课播放模式
+- 展台模式
+
+## 后续
+
+- 天翼云盘
+- 其他云盘
+
+Screenbox upstream: https://github.com/huynhsontung/Screenbox
+'@ | Set-Content -Encoding UTF8 README-FANLAOSHI.md
+
+      - name: Commit imported Screenbox
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'import Screenbox base [screenbox-imported]'
+          git push origin HEAD:screenbox-player
