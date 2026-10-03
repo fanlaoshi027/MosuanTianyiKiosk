@@ -62,3 +62,5 @@ jobs:
           name: UWPCloudPlayer-x64-v0.1
           path: UWPCloudPlayer-x64-v0.1.zip
           if-no-files-found: error
+
+      # Build trigger after player source fixes
