@@ -12,6 +12,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install .NET Framework 4.7.2 Developer Pack
+        shell: pwsh
+        run: |
+          choco install netfx-4.7.2-devpack -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Generate UWP assets
         shell: pwsh
         run: |
