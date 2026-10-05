@@ -46,9 +46,9 @@ jobs:
       - name: Apply Mosuan file browser
         shell: pwsh
         run: .\Patches\Apply-MosuanFileBrowser.ps1
-      - name: Apply Mosuan file browser UI
+      - name: Apply Mosuan file browser UI v2
         shell: pwsh
-        run: .\Patches\Apply-MosuanFileBrowserUI.ps1
+        run: .\Patches\Apply-MosuanFileBrowserUI2.ps1
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
