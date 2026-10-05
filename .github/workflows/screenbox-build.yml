@@ -43,40 +43,44 @@ jobs:
         shell: pwsh
         run: .\Screenbox\scripts\Update-ProjectVersion.ps1
 
-      - name: Build signed x64 AppX package
+      - name: Build app package
         shell: pwsh
+        env:
+          PackageDir: C:\DeployOutput\
         run: |
-          $deploy = 'C:\DeployOutput\'
-          New-Item -ItemType Directory -Force -Path $deploy | Out-Null
           msbuild Screenbox\Screenbox\Screenbox.csproj `
             -restore `
             -p:RestoreConfigFile=Screenbox\nuget.config `
             -p:ContinuousIntegrationBuild=true `
             -p:Configuration=Release `
             -p:Platform=x64 `
-            -p:AppxPackageDir=$deploy `
-            -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:AppxBundle=Never `
-            -p:AppxBundlePlatforms=x64 `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:GenerateTemporaryStoreCertificate=true
+            -p:AppxPackageDir=$env:PackageDir `
+            -p:UapAppxPackageBuildMode=SideloadOnly
 
-      - name: Verify package output
+      - name: Verify sideload package
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path 'C:\DeployOutput' -Recurse -File
-          $files | Select-Object FullName, @{N='MB';E={[math]::Round($_.Length / 1MB, 1)}} | Format-Table -AutoSize
           $testDir = Get-ChildItem -Path 'C:\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
           if (-not $testDir) { throw 'No *_Test sideload directory was generated.' }
-          $msix = Get-ChildItem -Path $testDir.FullName -Recurse -File -Filter '*.msix' | Select-Object -First 1
-          if (-not $msix) { throw 'No .msix package was generated.' }
-          Write-Host "Install package: $($msix.FullName)"
 
-      - name: Upload installable package
+          Write-Host 'Generated sideload files:'
+          Get-ChildItem -Path $testDir.FullName -Recurse -File |
+            Select-Object FullName, @{N='MB';E={[math]::Round($_.Length / 1MB, 1)}} |
+            Format-Table -AutoSize
+
+          $installer = Get-ChildItem -Path $testDir.FullName -Recurse -File |
+            Where-Object { $_.Name -eq 'Add-AppDevPackage.ps1' } |
+            Select-Object -First 1
+          if (-not $installer) { throw 'Add-AppDevPackage.ps1 was not generated.' }
+
+          Write-Host "Installer script: $($installer.FullName)"
+
+      - name: Upload installable sideload package
         uses: actions/upload-artifact@v7
         with:
           name: screenbox-player-x64-installer
-          path: C:\DeployOutput\*_Test\
+          path: |
+            C:\DeployOutput\*_Test\
+            !C:\DeployOutput\*_Test\*.msix
           compression-level: 0
           if-no-files-found: error
