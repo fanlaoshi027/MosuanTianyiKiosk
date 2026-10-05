@@ -2,8 +2,7 @@ name: Screenbox Player Build
 
 on:
   push:
-    branches:
-      - screenbox-player
+    branches: [screenbox-player]
   workflow_dispatch:
 
 permissions:
@@ -21,12 +20,10 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 1
-
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v3
         with:
           msbuild-architecture: x64
-
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
@@ -34,23 +31,21 @@ jobs:
           key: ${{ runner.os }}-nuget-screenbox-${{ hashFiles('Screenbox/**/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-screenbox-
-
       - name: Apply Mosuan player theme
         shell: pwsh
         run: .\Patches\Apply-MosuanPlayerTheme.ps1
-
       - name: Apply Mosuan crop and mask features
         shell: pwsh
         run: .\Patches\Apply-MosuanPlayerFeatures.ps1
-
+      - name: Apply Mosuan normalized layout rules
+        shell: pwsh
+        run: .\Patches\Apply-MosuanLayoutRules.ps1
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
-
       - name: Update project version
         shell: pwsh
         run: .\Screenbox\scripts\Update-ProjectVersion.ps1
-
       - name: Build app package
         shell: pwsh
         env:
@@ -64,7 +59,6 @@ jobs:
             -p:Platform=x64 `
             -p:AppxPackageDir=$env:PackageDir `
             -p:UapAppxPackageBuildMode=SideloadOnly
-
       - name: Upload sideload artifact
         uses: actions/upload-artifact@v7
         with:
