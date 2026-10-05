@@ -40,6 +40,9 @@ jobs:
       - name: Apply Mosuan normalized layout rules
         shell: pwsh
         run: .\Patches\Apply-MosuanLayoutRules.ps1
+      - name: Apply Mosuan playlist and favorites
+        shell: pwsh
+        run: .\Patches\Apply-MosuanPlaylistFavorites.ps1
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
