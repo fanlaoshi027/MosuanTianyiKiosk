@@ -22,17 +22,15 @@ $playerText = $playerText.Replace('FallbackColor="#2C2C2C"', 'FallbackColor="#10
 $playerText = $playerText.Replace('TintColor="#202020"', 'TintColor="#0B0D10"')
 $playerText = $playerText.Replace('TintOpacity="0.5"', 'TintOpacity="0.72"')
 
-if ($playerText -notmatch 'x:Name="MosuanPlayerBackgroundMarker"') {
-    $playerText = $playerText.Replace('x:Name="LayoutRoot"', 'x:Name="LayoutRoot"\n        x:Name="MosuanPlayerBackgroundMarker"')
-}
-
 # Hide the large album-art backdrop. The video surface remains untouched.
-$playerText = [regex]::Replace(
-    $playerText,
-    '(?s)(<Grid\s+x:Name="BackgroundElement"[^>]*)(>)',
-    '$1 Visibility="Collapsed"$2',
-    1
-)
+if ($playerText -notmatch 'x:Name="BackgroundElement"[^>]*Visibility="Collapsed"') {
+    $playerText = [regex]::Replace(
+        $playerText,
+        '(?s)(<Grid\s+x:Name="BackgroundElement"[^>]*)(>)',
+        '$1 Visibility="Collapsed"$2',
+        1
+    )
+}
 
 Set-Content -Path $player -Value $playerText -Encoding UTF8
 Write-Host 'Mosuan player theme patch applied.'
