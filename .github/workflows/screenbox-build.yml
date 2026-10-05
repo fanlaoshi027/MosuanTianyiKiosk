@@ -39,6 +39,10 @@ jobs:
         shell: pwsh
         run: .\Patches\Apply-MosuanPlayerTheme.ps1
 
+      - name: Apply Mosuan crop and mask features
+        shell: pwsh
+        run: .\Patches\Apply-MosuanPlayerFeatures.ps1
+
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
