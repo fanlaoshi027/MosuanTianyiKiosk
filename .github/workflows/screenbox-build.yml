@@ -77,3 +77,4 @@ jobs:
             !C:\DeployOutput\*_Test\*.msix
           compression-level: 0
           if-no-files-found: error
+      # Build intentionally triggered by this workflow update after the Grid.Children fix.
