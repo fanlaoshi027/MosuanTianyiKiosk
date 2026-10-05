@@ -40,15 +40,6 @@ jobs:
       - name: Apply Mosuan normalized layout rules
         shell: pwsh
         run: .\Patches\Apply-MosuanLayoutRules.ps1
-      - name: Apply Mosuan playlist and favorites
-        shell: pwsh
-        run: .\Patches\Apply-MosuanPlaylistFavorites.ps1
-      - name: Apply Mosuan file browser
-        shell: pwsh
-        run: .\Patches\Apply-MosuanFileBrowser.ps1
-      - name: Apply Mosuan file browser UI v2
-        shell: pwsh
-        run: .\Patches\Apply-MosuanFileBrowserUI2.ps1
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity SideloadUnsigned
@@ -71,10 +62,9 @@ jobs:
       - name: Upload sideload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: MosuanPlayer-x64-dark
+          name: MosuanPlayer-x64-core
           path: |
             C:\DeployOutput\*_Test\
             !C:\DeployOutput\*_Test\*.msix
           compression-level: 0
           if-no-files-found: error
-      # Build intentionally triggered by this workflow update after the Grid.Children fix.
