@@ -6,13 +6,17 @@ if (!(Test-Path $page) -or !(Test-Path $pageCs)) { throw 'PlayerPage files not f
 
 $xaml=Get-Content -Raw -Encoding UTF8 $page
 
-# Remove the previous Mosuan panels regardless of where the earlier patch inserted them.
+# Remove panels injected by earlier revisions. Keep this patch idempotent.
 $xaml=[regex]::Replace($xaml,'(?s)\s*<!-- Mosuan playlist/favorites panel.*?<\/Grid>\s*','\n')
-$xaml=[regex]::Replace($xaml,'(?s)\s*<!-- Mosuan file browser: below the video/control area\. -->.*?<Grid x:Name="MosuanFileBrowserPanel".*?<\/Grid>\s*','\n')
+$xaml=[regex]::Replace($xaml,'(?s)\s*<!-- Mosuan file browser:.*?<Grid x:Name="MosuanFileBrowserPanel".*?<\/Grid>\s*','\n')
+
+# Normalize explicit Grid.Children blocks to ordinary child elements. This avoids
+# duplicate Children assignment when previous patches have already touched the root Grid.
+$xaml=$xaml.Replace('<Grid.Children>','').Replace('</Grid.Children>','')
 
 $playlist=@'
-        <!-- Mosuan playlist/favorites panel: outside video, below playback controls. -->
-        <Grid x:Name="MosuanPlaylistPanel" Grid.Row="4" Margin="0,8,0,0" MinHeight="170" Background="#FF151515">
+        <!-- Mosuan playlist/favorites panel: outside the video surface. -->
+        <Grid x:Name="MosuanPlaylistPanel" Grid.Row="3" Margin="0,8,0,0" MinHeight="170" Background="#FF151515">
             <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="1.2*"/></Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Margin="12,8,8,8">
                 <TextBlock Text="播放列表" FontSize="18" FontWeight="SemiBold"/>
@@ -28,8 +32,8 @@ $playlist=@'
 '@
 
 $browser=@'
-        <!-- Mosuan file browser: below video, playback controls, playlist and favorites. -->
-        <Grid x:Name="MosuanFileBrowserPanel" Grid.Row="5" Margin="0,8,0,0" MinHeight="230" Background="#FF111111">
+        <!-- Mosuan file browser: outside the video surface. -->
+        <Grid x:Name="MosuanFileBrowserPanel" Grid.Row="4" Margin="0,8,0,0" MinHeight="230" Background="#FF111111">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,8,12,6">
                 <TextBlock Text="文件" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -59,16 +63,20 @@ $browser=@'
         </Grid>
 '@
 
-# Screenbox uses an explicit Grid.Children collection. Insert our controls into it,
-# rather than adding a second implicit Children collection to the same Grid.
-if ($xaml -match '(?s)<Grid\.Children>') {
-    $pos=$xaml.IndexOf('</Grid.Children>')
-    if ($pos -lt 0) { throw 'Grid.Children closing tag not found' }
-    $xaml=$xaml.Insert($pos,$playlist+$browser)
-} else {
-    throw 'Expected Screenbox PlayerPage Grid.Children collection not found'
+# Add two Auto rows to the root LayoutRoot so these panels live below the existing player area.
+$rowDef='(<Grid.RowDefinitions>\s*)(?<rows>.*?)(\s*</Grid.RowDefinitions>)'
+$m=[regex]::Match($xaml,$rowDef,[Text.RegularExpressions.RegexOptions]::Singleline)
+if(!$m.Success){throw 'Root Grid.RowDefinitions not found'}
+$existing=$m.Groups['rows'].Value
+if($existing -notmatch 'MosuanExtraRows'){
+    $newRows=$existing+"`r`n        <!-- MosuanExtraRows -->`r`n        <RowDefinition Height=\"Auto\" />`r`n        <RowDefinition Height=\"Auto\" />"
+    $xaml=$xaml.Remove($m.Groups['rows'].Index,$m.Groups['rows'].Length).Insert($m.Groups['rows'].Index,$newRows)
 }
+
+# Insert immediately before the closing tag of LayoutRoot.
+$rootClose=[regex]::Match($xaml,'(?s)(<Grid\s+x:Name="LayoutRoot".*?)(</Grid>\s*</Page>)')
+if(!$rootClose.Success){throw 'LayoutRoot closing tag not found'}
+$xaml=$xaml.Insert($rootClose.Groups[2].Index,$playlist+$browser)
 Set-Content -Path $page -Value $xaml -Encoding UTF8
 
-# C# handlers/data layer are already injected by the earlier patches; do not duplicate them.
-Write-Host 'Mosuan file browser UI v2 applied using Grid.Children.'
+Write-Host 'Mosuan file browser UI v3 applied.'
