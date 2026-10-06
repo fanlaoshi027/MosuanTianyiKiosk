@@ -2,7 +2,7 @@ name: Screenbox Player Build
 
 on:
   push:
-    branches: [screenbox-player]
+    branches: [screenbox-player, mosuan-smart-invert]
   workflow_dispatch:
 
 permissions:
