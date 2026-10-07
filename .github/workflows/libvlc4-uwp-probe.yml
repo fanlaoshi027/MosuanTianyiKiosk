@@ -54,6 +54,8 @@ jobs:
           using System;
           using LibVLCSharp.Core;
           using LibVLCSharp.Core.Interop;
+          using Vortice.DXGI;
+          using Vortice.Direct3D11;
 
           unsafe class Program
           {
@@ -133,8 +135,10 @@ jobs:
               private readonly VideoMakeCurrentCallback _current;
               private readonly VideoOutputSelectPlaneCallback _select;
 
-              private IntPtr _deviceContext;
-              private IntPtr _renderTargetView;
+              private ID3D11Device? _device;
+              private ID3D11DeviceContext? _deviceContext;
+              private ID3D11Texture2D? _texture;
+              private ID3D11RenderTargetView? _renderTargetView;
 
               public D3D11OutputBridge()
               {
@@ -155,20 +159,26 @@ jobs:
                       null, null, _select);
               }
 
-              public void SetDeviceContext(IntPtr context) => _deviceContext = context;
-              public void SetRenderTargetView(IntPtr rtv) => _renderTargetView = rtv;
+              public void SetDevice(ID3D11Device device, ID3D11DeviceContext context)
+              {
+                  _device = device;
+                  _deviceContext = context;
+              }
 
               private bool Setup(IntPtr* opaque, libvlc_video_setup_device_cfg_t* cfg, libvlc_video_setup_device_info_t* output)
               {
                   if (_deviceContext == IntPtr.Zero) return false;
-                  output->u.d3d11.device_context = _deviceContext;
+                  output->u.d3d11.device_context = _deviceContext.NativePointer;
                   output->u.d3d11.context_mutex = IntPtr.Zero;
                   return true;
               }
 
               private void Cleanup(IntPtr opaque)
               {
-                  _renderTargetView = IntPtr.Zero;
+                  _renderTargetView?.Dispose();
+                  _renderTargetView = null;
+                  _texture?.Dispose();
+                  _texture = null;
               }
 
               private void SetWindow(IntPtr opaque, IntPtr resize, IntPtr mouseMove, IntPtr mousePress, IntPtr mouseRelease, IntPtr reportOpaque) { }
@@ -176,8 +186,27 @@ jobs:
               private bool UpdateOutput(IntPtr opaque, libvlc_video_render_cfg_t* cfg, libvlc_video_output_cfg_t* output)
               {
                   if (cfg->width == 0 || cfg->height == 0) return false;
+                  _renderTargetView?.Dispose();
+                  _renderTargetView = null;
+                  _texture?.Dispose();
+                  _texture = null;
+
+                  _texture = _device!.CreateTexture2D(new Texture2DDescription
+                  {
+                      Width = cfg->width,
+                      Height = cfg->height,
+                      MipLevels = 1,
+                      ArraySize = 1,
+                      Format = Format.B8G8R8A8_UNorm,
+                      SampleDescription = new SampleDescription(1, 0),
+                      Usage = ResourceUsage.Default,
+                      BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
+                      CPUAccessFlags = CpuAccessFlags.None,
+                      MiscFlags = ResourceOptionFlags.Shared
+                  });
+                  _renderTargetView = _device.CreateRenderTargetView(_texture);
                   output->u.dxgi_format = 87;
-                  return _renderTargetView != IntPtr.Zero;
+                  return true;
               }
 
               private void Swap(IntPtr opaque) { }
@@ -186,12 +215,18 @@ jobs:
 
               private bool SelectPlane(IntPtr opaque, UIntPtr plane, IntPtr output)
               {
-                  if (output == IntPtr.Zero || _renderTargetView == IntPtr.Zero) return false;
-                  *(IntPtr*)output = _renderTargetView;
+                  if (output == IntPtr.Zero || _renderTargetView is null) return false;
+                  *(IntPtr*)output = _renderTargetView.NativePointer;
                   return true;
               }
 
-              public void Dispose() => _renderTargetView = IntPtr.Zero;
+              public void Dispose()
+              {
+                  _renderTargetView?.Dispose();
+                  _renderTargetView = null;
+                  _texture?.Dispose();
+                  _texture = null;
+              }
           }
           '@ | Set-Content -Encoding UTF8 D3D11/D3D11OutputBridge.cs
           $csproj = Get-Content LibVLC4Probe.csproj -Raw
@@ -219,7 +254,7 @@ jobs:
           using (context)
           using (var bridge = new D3D11OutputBridge())
           {
-              bridge.SetDeviceContext(context.NativePointer);
+              bridge.SetDevice(device, context);
               Console.WriteLine("D3D11 context: 0x" + context.NativePointer.ToString("x"));
               Console.WriteLine("Attach result: " + bridge.Attach(player));
           }
