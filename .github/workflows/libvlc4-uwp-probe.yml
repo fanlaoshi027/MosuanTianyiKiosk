@@ -110,6 +110,94 @@ jobs:
           Set-Content LibVLC4Probe.csproj -Value $csproj -Encoding UTF8
           dotnet build --configuration Release
 
+      - name: Compile D3D11 output bridge skeleton
+        shell: pwsh
+        run: |
+          Set-Location probe/LibVLC4Probe
+          New-Item -ItemType Directory -Force D3D11 | Out-Null
+          @'
+          using System;
+          using LibVLCSharp.Core;
+          using LibVLCSharp.Core.Interop;
+
+          namespace LibVLC4Probe.D3D11;
+
+          public unsafe sealed class D3D11OutputBridge : IDisposable
+          {
+              private readonly VideoOutputSetupCallback _setup;
+              private readonly VideoOutputCleanupCallback _cleanup;
+              private readonly VideoOutputSetWindowCallback _window;
+              private readonly VideoUpdateOutputCallback _update;
+              private readonly VideoSwapCallback _swap;
+              private readonly VideoMakeCurrentCallback _current;
+              private readonly VideoOutputSelectPlaneCallback _select;
+
+              private IntPtr _deviceContext;
+              private IntPtr _renderTargetView;
+
+              public D3D11OutputBridge()
+              {
+                  _setup = Setup;
+                  _cleanup = Cleanup;
+                  _window = SetWindow;
+                  _update = UpdateOutput;
+                  _swap = Swap;
+                  _current = MakeCurrent;
+                  _select = SelectPlane;
+              }
+
+              public bool Attach(MediaPlayer player)
+              {
+                  return player.SetOutputCallbacks(
+                      VideoEngine.D3d11,
+                      _setup, _cleanup, _window, _update, _swap, _current,
+                      null, null, _select);
+              }
+
+              public void SetDeviceContext(IntPtr context) => _deviceContext = context;
+              public void SetRenderTargetView(IntPtr rtv) => _renderTargetView = rtv;
+
+              private bool Setup(IntPtr* opaque, libvlc_video_setup_device_cfg_t* cfg, libvlc_video_setup_device_info_t* output)
+              {
+                  if (_deviceContext == IntPtr.Zero) return false;
+                  output->u.d3d11.device_context = _deviceContext;
+                  output->u.d3d11.context_mutex = IntPtr.Zero;
+                  return true;
+              }
+
+              private void Cleanup(IntPtr opaque)
+              {
+                  _renderTargetView = IntPtr.Zero;
+              }
+
+              private void SetWindow(IntPtr opaque, IntPtr resize, IntPtr mouseMove, IntPtr mousePress, IntPtr mouseRelease, IntPtr reportOpaque) { }
+
+              private bool UpdateOutput(IntPtr opaque, libvlc_video_render_cfg_t* cfg, libvlc_video_output_cfg_t* output)
+              {
+                  if (cfg->width == 0 || cfg->height == 0) return false;
+                  output->u.dxgi_format = 87;
+                  return _renderTargetView != IntPtr.Zero;
+              }
+
+              private void Swap(IntPtr opaque) { }
+
+              private bool MakeCurrent(IntPtr opaque, bool enter) => true;
+
+              private bool SelectPlane(IntPtr opaque, UIntPtr plane, IntPtr output)
+              {
+                  if (output == IntPtr.Zero || _renderTargetView == IntPtr.Zero) return false;
+                  *(IntPtr*)output = _renderTargetView;
+                  return true;
+              }
+
+              public void Dispose() => _renderTargetView = IntPtr.Zero;
+          }
+          '@ | Set-Content -Encoding UTF8 D3D11/D3D11OutputBridge.cs
+          $csproj = Get-Content LibVLC4Probe.csproj -Raw
+          $csproj = $csproj -replace '</Project>', '  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>'
+          Set-Content LibVLC4Probe.csproj -Value $csproj -Encoding UTF8
+          dotnet build --configuration Release
+
       - name: Run LibVLC 4 native load probe
         shell: pwsh
         run: |
