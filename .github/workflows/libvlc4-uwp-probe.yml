@@ -214,7 +214,7 @@ jobs:
           using var vlc = new LibVLC("--no-video");
           using var player = vlc.CreateMediaPlayer();
 
-          D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport, null!, out var device, out var context).CheckError();
+          D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport, Array.Empty<Vortice.Direct3D.FeatureLevel>(), out ID3D11Device device, out ID3D11DeviceContext context).CheckError();
           using (device)
           using (context)
           using (var bridge = new D3D11OutputBridge())
