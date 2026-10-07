@@ -1,6 +1,8 @@
 name: LibVLC 4 UWP Probe
 
 on:
+  push:
+    branches: [libvlc4-uwp-probe]
   workflow_dispatch:
 
 jobs:
