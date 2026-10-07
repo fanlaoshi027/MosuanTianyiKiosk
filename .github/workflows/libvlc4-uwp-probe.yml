@@ -19,13 +19,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force probe | Out-Null
           Set-Location probe
-          dotnet new classlib -n LibVLC4Probe -f net8.0
+          dotnet new console -n LibVLC4Probe -f net8.0
 
-      - name: Probe LibVLC 4 core binding
+      - name: Install LibVLC 4 binding and native runtime
         shell: pwsh
         run: |
           Set-Location probe/LibVLC4Probe
           dotnet add package LibVLC4Sharp.Core --prerelease --source https://api.nuget.org/v3/index.json
+          dotnet add package Endpne.LibVLC.Windows --version 4.0.2-dev --source https://api.nuget.org/v3/index.json
           dotnet list package
 
       - name: Compile LibVLC 4 API probe
@@ -36,22 +37,16 @@ jobs:
           using System;
           using LibVLCSharp.Core;
 
-          internal static class Program
-          {
-              public static void Probe()
-              {
-                  LibVLC.Initialize();
-                  Console.WriteLine(LibVLC.Version);
-                  using var vlc = new LibVLC();
-                  using var player = vlc.CreateMediaPlayer();
-                  Console.WriteLine(player.GetType().FullName);
-              }
-          }
-          '@ | Set-Content -Encoding UTF8 Probe.cs
+          LibVLC.Initialize();
+          Console.WriteLine("LibVLC version: " + LibVLC.Version);
+          using var vlc = new LibVLC("--no-video");
+          using var player = vlc.CreateMediaPlayer();
+          Console.WriteLine("MediaPlayer created: " + player.GetType().FullName);
+          '@ | Set-Content -Encoding UTF8 Program.cs
           dotnet build --configuration Release --no-restore
 
-      - name: Report
+      - name: Run LibVLC 4 native load probe
         shell: pwsh
         run: |
-          Write-Host 'LibVLC 4 core binding probe completed.'
-          Write-Host 'Next step: connect the D3D11 output callback layer to Screenbox.VideoView.'
+          Set-Location probe/LibVLC4Probe
+          dotnet run --configuration Release --no-build
