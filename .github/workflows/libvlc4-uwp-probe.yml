@@ -20,17 +20,38 @@ jobs:
           New-Item -ItemType Directory -Force probe | Out-Null
           Set-Location probe
           dotnet new classlib -n LibVLC4Probe -f net8.0
-          dotnet nuget add source "https://f.feedz.io/videolan/preview/nuget/index.json" --name videolan-preview
 
-      - name: Probe LibVLCSharp 4
+      - name: Probe LibVLC 4 core binding
         shell: pwsh
         run: |
           Set-Location probe/LibVLC4Probe
-          dotnet add package LibVLCSharp.UWP --prerelease --source videolan-preview
-          dotnet add package VideoLAN.LibVLC.UWP --prerelease --source videolan-preview
+          dotnet add package LibVLC4Sharp.Core --prerelease --source https://api.nuget.org/v3/index.json
+          dotnet list package
 
-      - name: Restore
+      - name: Compile LibVLC 4 API probe
         shell: pwsh
         run: |
           Set-Location probe/LibVLC4Probe
-          dotnet restore --source videolan-preview
+          @'
+          using System;
+          using LibVLCSharp.Core;
+
+          internal static class Program
+          {
+              public static void Probe()
+              {
+                  LibVLC.Initialize();
+                  Console.WriteLine(LibVLC.Version);
+                  using var vlc = new LibVLC();
+                  using var player = vlc.CreateMediaPlayer();
+                  Console.WriteLine(player.GetType().FullName);
+              }
+          }
+          '@ | Set-Content -Encoding UTF8 Probe.cs
+          dotnet build --configuration Release --no-restore
+
+      - name: Report
+        shell: pwsh
+        run: |
+          Write-Host 'LibVLC 4 core binding probe completed.'
+          Write-Host 'Next step: connect the D3D11 output callback layer to Screenbox.VideoView.'
