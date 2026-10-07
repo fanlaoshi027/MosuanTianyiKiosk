@@ -171,7 +171,7 @@ jobs:
 
               private bool Setup(IntPtr* opaque, libvlc_video_setup_device_cfg_t* cfg, libvlc_video_setup_device_info_t* output)
               {
-                  if (_deviceContext == IntPtr.Zero) return false;
+                  if (_deviceContext is null || _deviceContext.NativePointer == IntPtr.Zero) return false;
                   output->u.d3d11.device_context = _deviceContext.NativePointer;
                   output->u.d3d11.context_mutex = IntPtr.Zero;
                   return true;
