@@ -105,7 +105,9 @@ jobs:
               }
           }
           '@ | Set-Content -Encoding UTF8 Program.cs
-          (Get-Content LibVLC4Probe.csproj) -replace '</Project>', '  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>`n</Project>' | Set-Content LibVLC4Probe.csproj
+          $csproj = Get-Content LibVLC4Probe.csproj -Raw
+          $csproj = $csproj -replace '</Project>', '  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>'
+          Set-Content LibVLC4Probe.csproj -Value $csproj -Encoding UTF8
           dotnet build --configuration Release
 
       - name: Run LibVLC 4 native load probe
