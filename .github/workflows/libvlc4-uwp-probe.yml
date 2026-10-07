@@ -1,0 +1,34 @@
+name: LibVLC 4 UWP Probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.x
+
+      - name: Create probe project
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force probe | Out-Null
+          Set-Location probe
+          dotnet new classlib -n LibVLC4Probe -f net8.0
+          dotnet nuget add source "https://f.feedz.io/videolan/preview/nuget/index.json" --name videolan-preview
+
+      - name: Probe LibVLCSharp 4
+        shell: pwsh
+        run: |
+          Set-Location probe/LibVLC4Probe
+          dotnet add package LibVLCSharp.UWP --prerelease --source videolan-preview
+          dotnet add package VideoLAN.LibVLC.UWP --prerelease --source videolan-preview
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          Set-Location probe/LibVLC4Probe
+          dotnet restore --source videolan-preview
