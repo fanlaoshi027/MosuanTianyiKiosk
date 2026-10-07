@@ -124,6 +124,8 @@ jobs:
           using System;
           using LibVLCSharp.Core;
           using LibVLCSharp.Core.Interop;
+          using Vortice.DXGI;
+          using Vortice.Direct3D11;
 
           namespace LibVLC4Probe.D3D11;
 
