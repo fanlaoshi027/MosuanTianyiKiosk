@@ -124,6 +124,7 @@ jobs:
           New-Item -ItemType Directory -Force D3D11 | Out-Null
           @'
           using System;
+          using System.Runtime.InteropServices;
           using LibVLCSharp.Core;
           using LibVLCSharp.Core.Interop;
           using Vortice.DXGI;
@@ -178,12 +179,15 @@ jobs:
                   if (_deviceContext is null || _deviceContext.NativePointer == IntPtr.Zero) return false;
                   output->u.d3d11.device_context = _deviceContext.NativePointer;
                   output->u.d3d11.context_mutex = IntPtr.Zero;
+                  Marshal.AddRef(_deviceContext.NativePointer);
+                  Console.WriteLine("CALLBACK setup");
                   return true;
               }
 
               private void Cleanup(IntPtr opaque)
               {
                   Interlocked.Increment(ref CleanupCount);
+                  Console.WriteLine("CALLBACK cleanup");
                   _renderTargetView?.Dispose();
                   _renderTargetView = null;
                   _texture?.Dispose();
@@ -195,6 +199,7 @@ jobs:
               private bool UpdateOutput(IntPtr opaque, libvlc_video_render_cfg_t* cfg, libvlc_video_output_cfg_t* output)
               {
                   Interlocked.Increment(ref UpdateCount);
+                  Console.WriteLine($"CALLBACK update {cfg->width}x{cfg->height}");
                   if (cfg->width == 0 || cfg->height == 0) return false;
                   _renderTargetView?.Dispose();
                   _renderTargetView = null;
@@ -219,7 +224,7 @@ jobs:
                   return true;
               }
 
-              private void Swap(IntPtr opaque) { Interlocked.Increment(ref SwapCount); }
+              private void Swap(IntPtr opaque) { Interlocked.Increment(ref SwapCount); if (SwapCount <= 5) Console.WriteLine("CALLBACK swap"); }
 
               private bool MakeCurrent(IntPtr opaque, bool enter) => true;
 
@@ -269,7 +274,7 @@ jobs:
           using var vlc = new LibVLC("--verbose=2");
           using var player = vlc.CreateMediaPlayer();
 
-          D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport, Array.Empty<Vortice.Direct3D.FeatureLevel>(), out ID3D11Device device, out ID3D11DeviceContext context).CheckError();
+          D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport, Array.Empty<Vortice.Direct3D.FeatureLevel>(), out ID3D11Device device, out ID3D11DeviceContext context).CheckError();
           using (device)
           using (context)
           using (var bridge = new D3D11OutputBridge())
