@@ -36,11 +36,13 @@ jobs:
           Set-Location probe/LibVLC4Probe
           @'
           using System;
+          using System.IO;
+          using System.Threading;
           using LibVLCSharp.Core;
 
           LibVLC.Initialize();
           Console.WriteLine("LibVLC version: " + LibVLC.Version);
-          using var vlc = new LibVLC("--no-video");
+          using var vlc = new LibVLC("--verbose=2");
           using var player = vlc.CreateMediaPlayer();
           Console.WriteLine("MediaPlayer created: " + player.GetType().FullName);
           '@ | Set-Content -Encoding UTF8 Program.cs
@@ -143,6 +145,7 @@ jobs:
               private ID3D11DeviceContext? _deviceContext;
               private ID3D11Texture2D? _texture;
               private ID3D11RenderTargetView? _renderTargetView;
+              public int SetupCount, UpdateCount, SelectCount, SwapCount, CleanupCount;
 
               public D3D11OutputBridge()
               {
@@ -171,6 +174,7 @@ jobs:
 
               private bool Setup(IntPtr* opaque, libvlc_video_setup_device_cfg_t* cfg, libvlc_video_setup_device_info_t* output)
               {
+                  Interlocked.Increment(ref SetupCount);
                   if (_deviceContext is null || _deviceContext.NativePointer == IntPtr.Zero) return false;
                   output->u.d3d11.device_context = _deviceContext.NativePointer;
                   output->u.d3d11.context_mutex = IntPtr.Zero;
@@ -179,6 +183,7 @@ jobs:
 
               private void Cleanup(IntPtr opaque)
               {
+                  Interlocked.Increment(ref CleanupCount);
                   _renderTargetView?.Dispose();
                   _renderTargetView = null;
                   _texture?.Dispose();
@@ -189,6 +194,7 @@ jobs:
 
               private bool UpdateOutput(IntPtr opaque, libvlc_video_render_cfg_t* cfg, libvlc_video_output_cfg_t* output)
               {
+                  Interlocked.Increment(ref UpdateCount);
                   if (cfg->width == 0 || cfg->height == 0) return false;
                   _renderTargetView?.Dispose();
                   _renderTargetView = null;
@@ -213,12 +219,13 @@ jobs:
                   return true;
               }
 
-              private void Swap(IntPtr opaque) { }
+              private void Swap(IntPtr opaque) { Interlocked.Increment(ref SwapCount); }
 
               private bool MakeCurrent(IntPtr opaque, bool enter) => true;
 
               private bool SelectPlane(IntPtr opaque, UIntPtr plane, IntPtr output)
               {
+                  Interlocked.Increment(ref SelectCount);
                   if (output == IntPtr.Zero || _renderTargetView is null) return false;
                   *(IntPtr*)output = _renderTargetView.NativePointer;
                   return true;
@@ -237,6 +244,12 @@ jobs:
           $csproj = $csproj -replace '</Project>', '  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>'
           Set-Content LibVLC4Probe.csproj -Value $csproj -Encoding UTF8
           dotnet build --configuration Release
+
+      - name: Create tiny test video
+        shell: pwsh
+        run: |
+          Set-Location probe/LibVLC4Probe
+          ffmpeg -y -f lavfi -i testsrc2=size=320x180:rate=30 -t 2 -pix_fmt yuv420p probe.mp4
 
       - name: Run LibVLC 4 D3D11 bridge probe
         shell: pwsh
@@ -261,6 +274,11 @@ jobs:
               bridge.SetDevice(device, context);
               Console.WriteLine("D3D11 context: 0x" + context.NativePointer.ToString("x"));
               Console.WriteLine("Attach result: " + bridge.Attach(player));
+              using var media = Media.FromPath(Path.GetFullPath("probe.mp4"));
+              player.Media = media;
+              Console.WriteLine("Play result: " + player.Play());
+              for (int i = 0; i < 80 && bridge.SwapCount == 0; i++) Thread.Sleep(250);
+              Console.WriteLine("Callbacks: setup=" + bridge.SetupCount + ", update=" + bridge.UpdateCount + ", select=" + bridge.SelectCount + ", swap=" + bridge.SwapCount + ", cleanup=" + bridge.CleanupCount);
           }
           '@ | Set-Content -Encoding UTF8 Program.cs
           $csproj = Get-Content LibVLC4Probe.csproj -Raw
