@@ -266,7 +266,7 @@ jobs:
           using Vortice.Direct3D11;
 
           LibVLC.Initialize();
-          using var vlc = new LibVLC("--no-video");
+          using var vlc = new LibVLC("--verbose=2");
           using var player = vlc.CreateMediaPlayer();
 
           D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport, Array.Empty<Vortice.Direct3D.FeatureLevel>(), out ID3D11Device device, out ID3D11DeviceContext context).CheckError();
