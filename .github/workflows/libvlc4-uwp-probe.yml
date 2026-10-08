@@ -248,6 +248,9 @@ jobs:
       - name: Create tiny test video
         shell: pwsh
         run: |
+          choco install ffmpeg -y --no-progress
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+          Get-Command ffmpeg
           Set-Location probe/LibVLC4Probe
           ffmpeg -y -f lavfi -i testsrc2=size=320x180:rate=30 -t 2 -pix_fmt yuv420p probe.mp4
 
