@@ -250,14 +250,13 @@ jobs:
           Set-Content LibVLC4Probe.csproj -Value $csproj -Encoding UTF8
           dotnet build --configuration Release
 
-      - name: Create tiny test video
+      - name: Get test video
         shell: pwsh
         run: |
-          choco install ffmpeg -y --no-progress
-          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-          Get-Command ffmpeg
           Set-Location probe/LibVLC4Probe
-          ffmpeg -y -f lavfi -i testsrc2=size=320x180:rate=30 -t 2 -pix_fmt yuv420p probe.mp4
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/MediaElement/mediaelement-files/master/big_buck_bunny.mp4" -OutFile probe.mp4
+          if ((Get-Item probe.mp4).Length -lt 10000) { throw "Downloaded test video is unexpectedly small." }
+          Get-Item probe.mp4 | Select-Object Name, Length
 
       - name: Run LibVLC 4 D3D11 bridge probe
         shell: pwsh
