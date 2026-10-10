@@ -77,6 +77,12 @@ jobs:
               static bool UpdateOutput(IntPtr opaque, libvlc_video_render_cfg_t* cfg, libvlc_video_output_cfg_t* output)
               {
                   output->u.dxgi_format = 87;
+                  output->full_range = 1;
+                  output->colorspace = libvlc_video_color_space_t.libvlc_video_colorspace_BT709;
+                  output->primaries = libvlc_video_color_primaries_t.libvlc_video_primaries_BT709;
+                  output->transfer = libvlc_video_transfer_func_t.libvlc_video_transfer_func_SRGB;
+                  output->orientation = libvlc_video_orient_t.libvlc_video_orient_top_left;
+                  Console.WriteLine("CALLBACK update configured BGRA8/BT709");
                   return true;
               }
 
@@ -231,6 +237,7 @@ jobs:
               private bool SelectPlane(IntPtr opaque, UIntPtr plane, IntPtr output)
               {
                   Interlocked.Increment(ref SelectCount);
+                  Console.WriteLine("CALLBACK select plane " + plane);
                   if (output == IntPtr.Zero || _renderTargetView is null) return false;
                   *(IntPtr*)output = _renderTargetView.NativePointer;
                   return true;
