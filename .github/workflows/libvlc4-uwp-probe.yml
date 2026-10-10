@@ -42,7 +42,7 @@ jobs:
 
           LibVLC.Initialize();
           Console.WriteLine("LibVLC version: " + LibVLC.Version);
-          using var vlc = new LibVLC("--verbose=2");
+          using var vlc = new LibVLC("--verbose=2", "--avcodec-hw=none");
           using var player = vlc.CreateMediaPlayer();
           Console.WriteLine("MediaPlayer created: " + player.GetType().FullName);
           '@ | Set-Content -Encoding UTF8 Program.cs
