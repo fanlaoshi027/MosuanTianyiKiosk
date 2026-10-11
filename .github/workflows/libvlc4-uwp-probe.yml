@@ -227,12 +227,30 @@ jobs:
                   });
                   _renderTargetView = _device.CreateRenderTargetView(_texture);
                   output->u.dxgi_format = 87;
+                  output->full_range = 1;
+                  output->colorspace = libvlc_video_color_space_t.libvlc_video_colorspace_BT709;
+                  output->primaries = libvlc_video_color_primaries_t.libvlc_video_primaries_BT709;
+                  output->transfer = libvlc_video_transfer_func_t.libvlc_video_transfer_func_SRGB;
+                  output->orientation = libvlc_video_orient_t.libvlc_video_orient_top_left;
                   return true;
               }
 
               private void Swap(IntPtr opaque) { Interlocked.Increment(ref SwapCount); if (SwapCount <= 5) Console.WriteLine("CALLBACK swap"); }
 
-              private bool MakeCurrent(IntPtr opaque, bool enter) => true;
+              private bool MakeCurrent(IntPtr opaque, bool enter)
+              {
+                  if (enter) return true;
+                  try
+                  {
+                      _deviceContext?.Flush();
+                      return true;
+                  }
+                  catch (Exception ex)
+                  {
+                      Console.WriteLine("MakeCurrent flush failed: " + ex.Message);
+                      return false;
+                  }
+              }
 
               private bool SelectPlane(IntPtr opaque, UIntPtr plane, IntPtr output)
               {
