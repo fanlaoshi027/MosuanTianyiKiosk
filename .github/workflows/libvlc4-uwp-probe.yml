@@ -313,8 +313,12 @@ jobs:
               player.Stop();
               for (int i = 0; i < 20 && bridge.CleanupCount < 1; i++) Thread.Sleep(100);
               Console.WriteLine("Callbacks: setup=" + bridge.SetupCount + ", update=" + bridge.UpdateCount + ", select=" + bridge.SelectCount + ", swap=" + bridge.SwapCount + ", cleanup=" + bridge.CleanupCount);
+              if (bridge.SetupCount < 1) throw new Exception("Expected setup callback.");
+              if (bridge.UpdateCount < 1) throw new Exception("Expected output update callback.");
+              if (bridge.SelectCount < 1) throw new Exception("Expected select-plane callback.");
               if (bridge.SwapCount < 5) throw new Exception("Expected at least 5 video frame callbacks; got " + bridge.SwapCount);
               if (bridge.CleanupCount < 1) throw new Exception("Expected cleanup callback after Stop.");
+              Console.WriteLine("PASS: setup/update/select/swap/cleanup lifecycle verified.");
           }
           '@ | Set-Content -Encoding UTF8 Program.cs
           $csproj = Get-Content LibVLC4Probe.csproj -Raw
