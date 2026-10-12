@@ -295,7 +295,7 @@ jobs:
           using Vortice.Direct3D11;
 
           LibVLC.Initialize();
-          using var vlc = new LibVLC("--verbose=2");
+          using var vlc = new LibVLC("--verbose=2", "--no-audio");
           using var player = vlc.CreateMediaPlayer();
 
           D3D11.D3D11CreateDevice(null, DriverType.Hardware, DeviceCreationFlags.BgraSupport | DeviceCreationFlags.VideoSupport, Array.Empty<Vortice.Direct3D.FeatureLevel>(), out ID3D11Device device, out ID3D11DeviceContext context).CheckError();
@@ -310,8 +310,11 @@ jobs:
               player.Media = media;
               Console.WriteLine("Play result: " + player.Play());
               for (int i = 0; i < 80 && bridge.SwapCount < 5; i++) Thread.Sleep(250);
+              player.Stop();
+              for (int i = 0; i < 20 && bridge.CleanupCount < 1; i++) Thread.Sleep(100);
               Console.WriteLine("Callbacks: setup=" + bridge.SetupCount + ", update=" + bridge.UpdateCount + ", select=" + bridge.SelectCount + ", swap=" + bridge.SwapCount + ", cleanup=" + bridge.CleanupCount);
               if (bridge.SwapCount < 5) throw new Exception("Expected at least 5 video frame callbacks; got " + bridge.SwapCount);
+              if (bridge.CleanupCount < 1) throw new Exception("Expected cleanup callback after Stop.");
           }
           '@ | Set-Content -Encoding UTF8 Program.cs
           $csproj = Get-Content LibVLC4Probe.csproj -Raw
