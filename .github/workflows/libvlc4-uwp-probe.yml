@@ -177,6 +177,30 @@ jobs:
               {
                   _device = device;
                   _deviceContext = context;
+                  EnableMultithreadProtection(context.NativePointer);
+              }
+
+              private static unsafe void EnableMultithreadProtection(IntPtr context)
+              {
+                  // ID3D11Multithread: SetMultithreadProtected is vtable slot 5.
+                  var iid = new Guid("9B7E4E00-342C-4106-A19F-4F2704F689F0");
+                  if (Marshal.QueryInterface(context, ref iid, out var multithread) < 0 || multithread == IntPtr.Zero)
+                      throw new InvalidOperationException("ID3D11Multithread is not available on the D3D11 context.");
+
+                  try
+                  {
+                      var vtable = Marshal.ReadIntPtr(multithread);
+                      var slot = Marshal.ReadIntPtr(vtable, 5 * IntPtr.Size);
+                      var setProtected = (delegate* unmanaged[Stdcall]<IntPtr, int, int>)slot;
+                      var hr = setProtected(multithread, 1);
+                      if (hr < 0)
+                          throw new InvalidOperationException("SetMultithreadProtected failed: 0x" + hr.ToString("X8"));
+                      Console.WriteLine("D3D11 multithread protection enabled.");
+                  }
+                  finally
+                  {
+                      Marshal.Release(multithread);
+                  }
               }
 
               private bool Setup(IntPtr* opaque, libvlc_video_setup_device_cfg_t* cfg, libvlc_video_setup_device_info_t* output)
