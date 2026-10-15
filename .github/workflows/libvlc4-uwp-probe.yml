@@ -152,7 +152,7 @@ jobs:
               private ID3D11DeviceContext? _deviceContext;
               private ID3D11Texture2D? _texture;
               private ID3D11RenderTargetView? _renderTargetView;
-              public int SetupCount, UpdateCount, SelectCount, SwapCount, CleanupCount;
+              public int SetupCount, UpdateCount, SelectCount, SwapCount, CleanupCount, ValidFrameTargetCount;
 
               public D3D11OutputBridge()
               {
@@ -259,7 +259,14 @@ jobs:
                   return true;
               }
 
-              private void Swap(IntPtr opaque) { Interlocked.Increment(ref SwapCount); if (SwapCount <= 5) Console.WriteLine("CALLBACK swap"); }
+              private void Swap(IntPtr opaque)
+              {
+                  if (_texture is not null && _renderTargetView is not null &&
+                      _texture.Description.Width > 0 && _texture.Description.Height > 0)
+                      Interlocked.Increment(ref ValidFrameTargetCount);
+                  Interlocked.Increment(ref SwapCount);
+                  if (SwapCount <= 5) Console.WriteLine("CALLBACK swap; valid target=" + ( _texture is not null && _renderTargetView is not null));
+              }
 
               private bool MakeCurrent(IntPtr opaque, bool enter)
               {
@@ -336,13 +343,13 @@ jobs:
               for (int i = 0; i < 80 && bridge.SwapCount < 5; i++) Thread.Sleep(250);
               player.Stop();
               for (int i = 0; i < 20 && bridge.CleanupCount < 1; i++) Thread.Sleep(100);
-              Console.WriteLine("Callbacks: setup=" + bridge.SetupCount + ", update=" + bridge.UpdateCount + ", select=" + bridge.SelectCount + ", swap=" + bridge.SwapCount + ", cleanup=" + bridge.CleanupCount);
+              Console.WriteLine("Callbacks: setup=" + bridge.SetupCount + ", update=" + bridge.UpdateCount + ", select=" + bridge.SelectCount + ", swap=" + bridge.SwapCount + ", validFrameTargets=" + bridge.ValidFrameTargetCount + ", cleanup=" + bridge.CleanupCount);
               if (bridge.SetupCount < 1) throw new Exception("Expected setup callback.");
               if (bridge.UpdateCount < 1) throw new Exception("Expected output update callback.");
               if (bridge.SelectCount < 1) throw new Exception("Expected select-plane callback.");
-              if (bridge.SwapCount < 5) throw new Exception("Expected at least 5 video frame callbacks; got " + bridge.SwapCount);
+              if (bridge.SwapCount < 5) throw new Exception("Expected at least 5 video frame callbacks; got " + bridge.SwapCount);\n              if (bridge.ValidFrameTargetCount < 5) throw new Exception("Expected at least 5 swaps with a live D3D11 texture and RTV; got " + bridge.ValidFrameTargetCount);
               if (bridge.CleanupCount < 1) throw new Exception("Expected cleanup callback after Stop.");
-              Console.WriteLine("PASS: setup/update/select/swap/cleanup lifecycle verified.");
+              Console.WriteLine("PASS: setup/update/select/swap/cleanup lifecycle and live D3D11 frame targets verified.");
           }
           '@ | Set-Content -Encoding UTF8 Program.cs
           $csproj = Get-Content LibVLC4Probe.csproj -Raw
