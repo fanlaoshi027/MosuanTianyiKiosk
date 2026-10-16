@@ -14,7 +14,7 @@ $projectText = Get-Content -Raw -Encoding UTF8 $project
 if ($projectText -notmatch 'Microsoft\.Graphics\.Win2D') {
     $anchor = '<PackageReference Include="Microsoft.UI.Xaml"'
     if (!$projectText.Contains($anchor)) { throw 'Could not find Microsoft.UI.Xaml package anchor.' }
-    $insert = '<PackageReference Include="Win2D.uwp" Version="1.26.0" />' + [Environment]::NewLine + '    ' + $anchor
+    $insert = '<PackageReference Include="Win2D.uwp" Version="1.28.3" />' + [Environment]::NewLine + '    ' + $anchor
     $projectText = $projectText.Replace($anchor, $insert)
     Set-Content -Path $project -Value $projectText -Encoding UTF8
 }
