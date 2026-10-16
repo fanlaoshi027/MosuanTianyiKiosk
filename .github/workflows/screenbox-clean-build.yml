@@ -1,0 +1,65 @@
+name: Clean Official Screenbox Build
+
+on:
+  push:
+    branches: [screenbox-clean-libvlc3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository and official Screenbox submodule
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~\\.nuget\\packages
+          key: ${{ runner.os }}-nuget-screenbox-clean-${{ hashFiles('Screenbox/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-screenbox-clean-
+            ${{ runner.os }}-nuget-screenbox-
+
+      - name: Update package manifest for sideload
+        shell: pwsh
+        run: .\\Screenbox\\scripts\\Update-AppxManifest.ps1 -Identity SideloadUnsigned
+
+      - name: Update project version
+        shell: pwsh
+        run: .\\Screenbox\\scripts\\Update-ProjectVersion.ps1
+
+      - name: Build official Screenbox package
+        shell: pwsh
+        env:
+          PackageDir: C:\\DeployOutput\\
+        run: |
+          msbuild Screenbox\\Screenbox\\Screenbox.csproj `
+            -restore `
+            -p:RestoreConfigFile=Screenbox\\nuget.config `
+            -p:ContinuousIntegrationBuild=true `
+            -p:Configuration=Release `
+            -p:Platform=x64 `
+            -p:AppxPackageDir=$env:PackageDir `
+            -p:UapAppxPackageBuildMode=SideloadOnly
+
+      - name: Upload clean Screenbox build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Screenbox-clean-x64
+          path: |
+            C:\\DeployOutput\\*_Test\\
+            !C:\\DeployOutput\\*_Test\\*.msix
+          compression-level: 0
+          if-no-files-found: error
