@@ -2,7 +2,7 @@ name: Clean Official Screenbox Build
 
 on:
   push:
-    branches: [screenbox-clean-libvlc3]
+    branches: [screenbox-clean-libvlc3, screenbox-smart-invert-spike]
   workflow_dispatch:
 
 permissions:
@@ -32,6 +32,10 @@ jobs:
             ${{ runner.os }}-nuget-screenbox-clean-
             ${{ runner.os }}-nuget-screenbox-
 
+      - name: Apply first-pass color inversion overlay
+        shell: pwsh
+        run: .\\Patches\\Apply-MosuanColorInversion.ps1
+
       - name: Update package manifest for sideload
         shell: pwsh
         run: .\\Screenbox\\scripts\\Update-AppxManifest.ps1 -Identity SideloadUnsigned
@@ -57,7 +61,7 @@ jobs:
       - name: Upload clean Screenbox build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Screenbox-clean-x64
+          name: Screenbox-smart-invert-spike-x64
           path: |
             C:\\DeployOutput\\*_Test\\
             !C:\\DeployOutput\\*_Test\\*.msix
