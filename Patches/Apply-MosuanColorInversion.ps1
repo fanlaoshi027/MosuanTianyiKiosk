@@ -43,6 +43,11 @@ if ($xamlText -notmatch 'x:Name="InvertButton"') {
 }
 
 $codeText = Get-Content -Raw -Encoding UTF8 $code
+$resizeAnchor = '        ViewModel.UpdatePlayerViewSize(e.NewSize);'
+if ($codeText.Contains($resizeAnchor) -and $codeText -notmatch '_invertOverlay\.Size = new Vector2\(\(float\)e\.NewSize\.Width') {
+    $resizeInsert = $resizeAnchor + [Environment]::NewLine + '        if (_invertOverlay is not null) _invertOverlay.Size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);'
+    $codeText = $codeText.Replace($resizeAnchor, $resizeInsert)
+}
 if ($codeText -notmatch 'InvertButton_OnClick') {
     $usingAnchor = 'using CommunityToolkit.Mvvm.DependencyInjection;'
     if (!$codeText.Contains($usingAnchor)) { throw 'Could not find C# using anchor.' }
