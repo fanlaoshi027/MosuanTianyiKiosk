@@ -64,6 +64,5 @@ jobs:
           name: Screenbox-kiosk-invert-test-x64
           path: |
             C:\\DeployOutput\\*_Test\\
-            !C:\\DeployOutput\\*_Test\\*.msix
           compression-level: 6
           if-no-files-found: error
