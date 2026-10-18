@@ -72,14 +72,31 @@ if ($codeText -notmatch 'InvertButton_OnClick') {
         }
 
         var compositor = ElementCompositionPreview.GetElementVisual(VlcVideoView).Compositor;
-        var effect = new ColorMatrixEffect
+
+        // Match the website's CSS filter order:
+        // brightness(0.9) -> invert(1) -> hue-rotate(180deg).
+        // Keep this as an effect graph rather than a hand-written "smart" pixel algorithm.
+        var effect = new HueRotationEffect
         {
-            Name = "SmartInvertMatrix",
-            Source = new CompositionEffectSourceParameter("source"),
-            ColorMatrix = new Matrix5x4
+            Name = "MosuanHueRotation",
+            Angle = 180.0f,
+            Source = new ColorMatrixEffect
             {
-                M11 = -1, M22 = -1, M33 = -1, M44 = 1,
-                M51 = 1, M52 = 1, M53 = 1
+                Name = "MosuanInvert",
+                ColorMatrix = new Matrix5x4
+                {
+                    M11 = -1.0f, M22 = -1.0f, M33 = -1.0f, M44 = 1.0f,
+                    M51 = 1.0f, M52 = 1.0f, M53 = 1.0f
+                },
+                Source = new ColorMatrixEffect
+                {
+                    Name = "MosuanBrightness",
+                    ColorMatrix = new Matrix5x4
+                    {
+                        M11 = 0.9f, M22 = 0.9f, M33 = 0.9f, M44 = 1.0f
+                    },
+                    Source = new CompositionEffectSourceParameter("source")
+                }
             }
         };
 
@@ -93,7 +110,7 @@ if ($codeText -notmatch 'InvertButton_OnClick') {
         ElementCompositionPreview.SetElementChildVisual(VlcVideoView, _invertOverlay);
     }
 
-'@
+'@@
     $lastBrace = $codeText.LastIndexOf('}')
     if ($lastBrace -lt 0) { throw 'Could not find PlayerElement class closing brace.' }
     $codeText = $codeText.Insert($lastBrace, $method)
