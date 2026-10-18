@@ -110,7 +110,7 @@ if ($codeText -notmatch 'InvertButton_OnClick') {
         ElementCompositionPreview.SetElementChildVisual(VlcVideoView, _invertOverlay);
     }
 
-'@@
+'@
     $lastBrace = $codeText.LastIndexOf('}')
     if ($lastBrace -lt 0) { throw 'Could not find PlayerElement class closing brace.' }
     $codeText = $codeText.Insert($lastBrace, $method)
