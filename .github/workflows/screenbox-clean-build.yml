@@ -56,7 +56,7 @@ jobs:
             -p:Configuration=Release `
             -p:Platform=x64 `
             -p:AppxPackageDir=$env:PackageDir `
-            -p:UapAppxPackageBuildMode=SideloadOnly
+            -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxBundle=Never `
             -p:AppxBundlePlatforms=x64
 
