@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-            C:\DeployOutput\KioskTest\
+          $source = Get-ChildItem 'C:\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
           if (-not $source) { throw 'Test deployment directory was not generated.' }
           $stage = 'C:\DeployOutput\KioskTest'
           if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
@@ -94,7 +94,7 @@ jobs:
           if (Test-Path $resources) {
             Copy-Item $resources (Join-Path $stage 'Add-AppDevPackage.resources') -Recurse -Force
           }
-          Get-ChildItem $source.FullName -File -Include '*.cer','*.pfx' |
+          Get-ChildItem $source.FullName -File | Where-Object { $_.Extension -in '.cer','.pfx' } |
             Copy-Item -Destination $stage -Force
           Write-Host 'Staged x64 package and install dependencies:'
           Get-ChildItem $stage -Recurse -File | Select-Object FullName,Length | Format-Table -AutoSize
