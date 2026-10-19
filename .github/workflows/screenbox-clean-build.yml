@@ -60,11 +60,50 @@ jobs:
             -p:AppxBundle=Never `
             -p:AppxBundlePlatforms=x64
 
+      - name: Stage minimal x64 kiosk install files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+            C:\DeployOutput\KioskTest\
+          if (-not $source) { throw 'Test deployment directory was not generated.' }
+          $stage = 'C:\DeployOutput\KioskTest'
+          if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+          New-Item -ItemType Directory -Path $stage | Out-Null
+
+          # Keep only x64 app package and its dependencies; exclude duplicate architectures/symbols.
+          $app = Get-ChildItem $source.FullName -File -Filter '*_x64.msix' |
+            Where-Object { $_.Name -notmatch 'language-|scale-' } |
+            Select-Object -First 1
+          if (-not $app) { throw 'x64 MSIX application package was not found.' }
+          Copy-Item $app.FullName $stage
+
+          foreach ($folder in @('Dependencies\x64','Dependencies\Win32')) {
+            $from = Join-Path $source.FullName $folder
+            if (Test-Path $from) {
+              $to = Join-Path $stage $folder
+              New-Item -ItemType Directory -Path $to -Force | Out-Null
+              Copy-Item (Join-Path $from '*') $to -Recurse -Force
+            }
+          }
+
+          foreach ($file in @('Add-AppDevPackage.ps1','Install.ps1')) {
+            $from = Join-Path $source.FullName $file
+            if (Test-Path $from) { Copy-Item $from $stage }
+          }
+          $resources = Join-Path $source.FullName 'Add-AppDevPackage.resources'
+          if (Test-Path $resources) {
+            Copy-Item $resources (Join-Path $stage 'Add-AppDevPackage.resources') -Recurse -Force
+          }
+          Get-ChildItem $source.FullName -File -Include '*.cer','*.pfx' |
+            Copy-Item -Destination $stage -Force
+          Write-Host 'Staged x64 package and install dependencies:'
+          Get-ChildItem $stage -Recurse -File | Select-Object FullName,Length | Format-Table -AutoSize
+
       - name: Upload Screenbox kiosk test deployment package
         uses: actions/upload-artifact@v7
         with:
           name: Screenbox-kiosk-invert-test-x64
           path: |
-            C:\\DeployOutput\\*_Test\\
+            C:\DeployOutput\KioskTest\
           compression-level: 6
           if-no-files-found: error
