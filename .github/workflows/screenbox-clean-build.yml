@@ -32,23 +32,46 @@ jobs:
             ${{ runner.os }}-nuget-screenbox-clean-
             ${{ runner.os }}-nuget-screenbox-
 
+      - name: Create temporary self-signed package certificate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $subject = 'CN=ABCDF790-DBE4-48F7-8204-32FCB69ADF9C'
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $subject `
+            -KeyUsage DigitalSignature `
+            -FriendlyName 'Screenbox Dev Sideload' `
+            -CertStoreLocation 'Cert:\\CurrentUser\\My' `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3')
+          $password = ([guid]::NewGuid().ToString('N') + 'Aa1!')
+          $securePassword = ConvertTo-SecureString -String $password -Force -AsPlainText
+          $pfxPath = Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.pfx'
+          $cerPath = Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.cer'
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
+          "PFX_PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PACKAGE_CERTIFICATE=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Created temporary signing certificate for $subject"
+
       - name: Apply first-pass color inversion overlay
         shell: pwsh
         run: .\\Patches\\Apply-MosuanColorInversion.ps1
 
-      - name: Update package manifest for sideload
+      - name: Update package manifest for signed sideload
         shell: pwsh
-        run: .\\Screenbox\\scripts\\Update-AppxManifest.ps1 -Identity SideloadUnsigned
+        run: .\\Screenbox\\scripts\\Update-AppxManifest.ps1 -Identity Sideload
 
       - name: Update project version
         shell: pwsh
         run: .\\Screenbox\\scripts\\Update-ProjectVersion.ps1
 
-      - name: Build official Screenbox package
+      - name: Build signed official Screenbox package
         shell: pwsh
         env:
           PackageDir: C:\\DeployOutput\\
         run: |
+          $ErrorActionPreference = 'Stop'
           msbuild Screenbox\\Screenbox\\Screenbox.csproj `
             -restore `
             -p:RestoreConfigFile=Screenbox\\nuget.config `
@@ -58,26 +81,29 @@ jobs:
             -p:AppxPackageDir=$env:PackageDir `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxBundle=Never `
-            -p:AppxBundlePlatforms=x64
+            -p:AppxBundlePlatforms=x64 `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateKeyFile="$env:PACKAGE_CERTIFICATE" `
+            -p:PackageCertificatePassword="$env:PFX_PASSWORD"
+          if ($LASTEXITCODE -ne 0) { throw "MSBuild failed with exit code $LASTEXITCODE" }
 
       - name: Stage minimal x64 kiosk install files
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $source = Get-ChildItem 'C:\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
+          $source = Get-ChildItem 'C:\\DeployOutput' -Directory -Filter '*_Test' | Select-Object -First 1
           if (-not $source) { throw 'Test deployment directory was not generated.' }
-          $stage = 'C:\DeployOutput\KioskTest'
+          $stage = 'C:\\DeployOutput\\KioskTest'
           if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
           New-Item -ItemType Directory -Path $stage | Out-Null
 
-          # Keep only x64 app package and its dependencies; exclude duplicate architectures/symbols.
           $app = Get-ChildItem $source.FullName -File -Filter '*_x64.msix' |
             Where-Object { $_.Name -notmatch 'language-|scale-' } |
             Select-Object -First 1
           if (-not $app) { throw 'x64 MSIX application package was not found.' }
           Copy-Item $app.FullName $stage
 
-          foreach ($folder in @('Dependencies\x64','Dependencies\Win32')) {
+          foreach ($folder in @('Dependencies\\x64','Dependencies\\Win32')) {
             $from = Join-Path $source.FullName $folder
             if (Test-Path $from) {
               $to = Join-Path $stage $folder
@@ -94,9 +120,18 @@ jobs:
           if (Test-Path $resources) {
             Copy-Item $resources (Join-Path $stage 'Add-AppDevPackage.resources') -Recurse -Force
           }
-          Get-ChildItem $source.FullName -File | Where-Object { $_.Extension -in '.cer','.pfx' } |
-            Copy-Item -Destination $stage -Force
-          Write-Host 'Staged x64 package and install dependencies:'
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.cer') $stage -Force
+
+          $signtool = Get-ChildItem '${{ runner.tool_cache }}' -Filter signtool.exe -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          if ($signtool) {
+            & $signtool.FullName verify /pa $app.FullName
+            if ($LASTEXITCODE -ne 0) { throw 'MSIX signature verification failed.' }
+          } else {
+            Write-Warning 'SignTool was not found on PATH; MSBuild signing was enabled, but signature verification was skipped.'
+          }
+
+          Write-Host 'Staged signed x64 package and dependencies:'
           Get-ChildItem $stage -Recurse -File | Select-Object FullName,Length | Format-Table -AutoSize
 
       - name: Upload Screenbox kiosk test deployment package
@@ -104,6 +139,6 @@ jobs:
         with:
           name: Screenbox-kiosk-invert-test-x64
           path: |
-            C:\DeployOutput\KioskTest\
+            C:\\DeployOutput\\KioskTest\\
           compression-level: 6
           if-no-files-found: error
