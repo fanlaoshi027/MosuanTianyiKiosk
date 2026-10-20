@@ -122,6 +122,9 @@ jobs:
           Write-Host "Using SignTool: $signtoolPath"
           & $signtoolPath sign /fd SHA256 /f $env:PACKAGE_CERTIFICATE /p $env:PFX_PASSWORD $app.FullName
           if ($LASTEXITCODE -ne 0) { throw "MSIX signing failed with exit code $LASTEXITCODE" }
+          # Trust the ephemeral self-signed certificate on the CI runner so chain verification can pass.
+          Import-Certificate -FilePath (Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.cer') -CertStoreLocation 'Cert:\\CurrentUser\\Root' | Out-Null
+          Import-Certificate -FilePath (Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.cer') -CertStoreLocation 'Cert:\\CurrentUser\\TrustedPeople' | Out-Null
           & $signtoolPath verify /pa /v $app.FullName
           if ($LASTEXITCODE -ne 0) { throw "MSIX signature verification failed with exit code $LASTEXITCODE" }
           Write-Host "Verified signature for $($app.Name)"
