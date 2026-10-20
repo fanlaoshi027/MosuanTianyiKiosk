@@ -101,13 +101,28 @@ jobs:
             Where-Object { $_.FullName -notmatch '\\\\KioskTest\\' -and $_.Name -notmatch 'language-|scale-' } |
             Select-Object -First 1
           if (-not $app) { throw 'Built x64 MSIX was not found.' }
-          $signtool = Get-ChildItem 'C:\\Program Files (x86)\\Windows Kits\\10\\bin' -Recurse -File -Filter signtool.exe -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -match '\\\\x64\\signtool.exe$' } |
-            Sort-Object FullName -Descending | Select-Object -First 1
-          if (-not $signtool) { throw 'Windows SDK SignTool.exe was not found.' }
-          & $signtool.FullName sign /fd SHA256 /f $env:PACKAGE_CERTIFICATE /p $env:PFX_PASSWORD $app.FullName
+          $signtoolPath = $null
+          $signtoolCommand = Get-Command signtool.exe -ErrorAction SilentlyContinue
+          if ($signtoolCommand) { $signtoolPath = $signtoolCommand.Source }
+          if (-not $signtoolPath) {
+            $roots = @(
+              (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\bin'),
+              (Join-Path $env:ProgramFiles 'Windows Kits\\10\\bin'),
+              (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio'),
+              (Join-Path $env:ProgramFiles 'Microsoft Visual Studio')
+            ) | Where-Object { $_ -and (Test-Path $_) }
+            foreach ($root in $roots) {
+              $found = Get-ChildItem $root -Recurse -File -Filter signtool.exe -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match '[\\/]x64[\\/]signtool.exe$' } |
+                Select-Object -First 1
+              if ($found) { $signtoolPath = $found.FullName; break }
+            }
+          }
+          if (-not $signtoolPath) { throw 'SignTool.exe was not found in PATH, Windows SDK, or Visual Studio.' }
+          Write-Host "Using SignTool: $signtoolPath"
+          & $signtoolPath sign /fd SHA256 /f $env:PACKAGE_CERTIFICATE /p $env:PFX_PASSWORD $app.FullName
           if ($LASTEXITCODE -ne 0) { throw "MSIX signing failed with exit code $LASTEXITCODE" }
-          & $signtool.FullName verify /pa /v $app.FullName
+          & $signtoolPath verify /pa /v $app.FullName
           if ($LASTEXITCODE -ne 0) { throw "MSIX signature verification failed with exit code $LASTEXITCODE" }
           Write-Host "Verified signature for $($app.Name)"
 
