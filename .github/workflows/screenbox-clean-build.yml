@@ -127,8 +127,8 @@ jobs:
           # Trust the ephemeral self-signed certificate on the CI runner so chain verification can pass.
           $cerPath = Join-Path $env:GITHUB_WORKSPACE 'ScreenboxDev.cer'
           Write-Host 'Importing temporary signing certificate into CurrentUser Root and TrustedPeople stores.'
-          Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\\CurrentUser\\Root' | Out-Null
-          Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\\CurrentUser\\TrustedPeople' | Out-Null
+          # App Installer checks machine-level trust stores for MSIX sideloading.
+          Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\\LocalMachine\\TrustedPeople' | Out-Null
           Write-Host 'Starting SignTool signature verification.'
           & $signtoolPath verify /pa /v $app.FullName
           if ($LASTEXITCODE -ne 0) { throw "MSIX signature verification failed with exit code $LASTEXITCODE" }
