@@ -2,16 +2,18 @@ $ErrorActionPreference = 'Stop'
 
 $screenboxRoot = Join-Path $PSScriptRoot '..\Screenbox'
 $project = Join-Path $screenboxRoot 'Screenbox\Screenbox.csproj'
-$xaml = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerElement.xaml'
-$code = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerElement.xaml.cs'
+$elementXaml = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerElement.xaml'
+$elementCode = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerElement.xaml.cs'
+$controlsXaml = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerControls.xaml'
+$controlsCode = Join-Path $screenboxRoot 'Screenbox\Controls\PlayerControls.xaml.cs'
 
-foreach ($path in @($project, $xaml, $code)) {
+foreach ($path in @($project, $elementXaml, $elementCode, $controlsXaml, $controlsCode)) {
     if (!(Test-Path $path)) { throw "Required Screenbox file not found: $path" }
 }
 
 # Win2D provides the ColorMatrixEffect used by the composition backdrop overlay.
 $projectText = Get-Content -Raw -Encoding UTF8 $project
-if ($projectText -notmatch 'Microsoft\.Graphics\.Win2D') {
+if ($projectText -notmatch 'Win2D\.uwp') {
     $anchor = '<PackageReference Include="Microsoft.UI.Xaml"'
     if (!$projectText.Contains($anchor)) { throw 'Could not find Microsoft.UI.Xaml package anchor.' }
     $insert = '<PackageReference Include="Win2D.uwp" Version="1.28.3" />' + [Environment]::NewLine + '    ' + $anchor
@@ -19,50 +21,102 @@ if ($projectText -notmatch 'Microsoft\.Graphics\.Win2D') {
     Set-Content -Path $project -Value $projectText -Encoding UTF8
 }
 
-# Add a small first-pass toggle above the video surface.
-$xamlText = Get-Content -Raw -Encoding UTF8 $xaml
-if ($xamlText -notmatch 'x:Name="InvertButton"') {
-    $anchor = '            SizeChanged="VlcVideoView_OnSizeChanged" />'
-    if (!$xamlText.Contains($anchor)) { throw 'Could not find VideoView XAML anchor.' }
-    $button = @'
-            SizeChanged="VlcVideoView_OnSizeChanged" />
-
-        <Button
-            x:Name="InvertButton"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="12"
-            Padding="12,6"
-            Background="#CC202020"
-            Foreground="White"
-            Content="反色"
-            Click="InvertButton_OnClick" />
+# Put the inversion toggle in the actual playback control bar, not over the video/window chrome.
+$controlsXamlText = Get-Content -Raw -Encoding UTF8 $controlsXaml
+if ($controlsXamlText -notmatch 'x:Name="InvertButton"') {
+    $anchor = @'
+            <controls:VolumeControl
+                x:Name="VolumeControl"
+                Width="140"
+                Margin="0,0,8,0"
+                ShowValueText="False"
+                VolumeToggleButtonStyle="{StaticResource PlayerToggleButtonStyle}" />
 '@
-    $xamlText = $xamlText.Replace($anchor, $button.TrimEnd())
-    Set-Content -Path $xaml -Value $xamlText -Encoding UTF8
+    if (!$controlsXamlText.Contains($anchor)) { throw 'Could not find VolumeControl anchor in PlayerControls.xaml.' }
+    $insert = $anchor + @'
+
+            <!-- Mosuan video inversion toggle -->
+            <ToggleButton
+                x:Name="InvertButton"
+                Margin="0,0,4,0"
+                Content="反色"
+                AutomationProperties.Name="视频反色"
+                IsEnabled="{x:Bind ViewModel.HasVideo, Mode=OneWay}"
+                Style="{StaticResource PlayerToggleButtonStyle}"
+                Checked="InvertButton_OnChecked"
+                Unchecked="InvertButton_OnUnchecked" />
+'@
+    $controlsXamlText = $controlsXamlText.Replace($anchor, $insert.TrimEnd())
+    Set-Content -Path $controlsXaml -Value $controlsXamlText -Encoding UTF8
 }
 
-$codeText = Get-Content -Raw -Encoding UTF8 $code
-$resizeAnchor = '        ViewModel.UpdatePlayerViewSize(e.NewSize);'
-if ($codeText.Contains($resizeAnchor) -and $codeText -notmatch '_invertOverlay\.Size = new Vector2\(\(float\)e\.NewSize\.Width') {
-    $resizeInsert = $resizeAnchor + [Environment]::NewLine + '        if (_invertOverlay is not null) _invertOverlay.Size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);'
-    $codeText = $codeText.Replace($resizeAnchor, $resizeInsert)
+# Wire the control-bar toggle to the PlayerElement that owns the video surface.
+$controlsCodeText = Get-Content -Raw -Encoding UTF8 $controlsCode
+if ($controlsCodeText -notmatch 'InvertButton_OnChecked') {
+    $anchor = '    private bool IsCastButtonEnabled(bool hasActiveItem)'
+    if (!$controlsCodeText.Contains($anchor)) { throw 'Could not find PlayerControls code insertion point.' }
+    $methods = @'
+    private void InvertButton_OnChecked(object sender, RoutedEventArgs e)
+    {
+        PlayerElement.RequestInversion(true);
+    }
+
+    private void InvertButton_OnUnchecked(object sender, RoutedEventArgs e)
+    {
+        PlayerElement.RequestInversion(false);
+    }
+
+'@
+    $controlsCodeText = $controlsCodeText.Replace($anchor, $methods + $anchor)
+    Set-Content -Path $controlsCode -Value $controlsCodeText -Encoding UTF8
 }
-if ($codeText -notmatch 'InvertButton_OnClick') {
+
+$elementXamlText = Get-Content -Raw -Encoding UTF8 $elementXaml
+if ($elementXamlText -notmatch 'Loaded="OnLoaded"') {
+    $elementXamlText = $elementXamlText.Replace('    Unloaded="OnUnloaded"', '    Loaded="OnLoaded"' + [Environment]::NewLine + '    Unloaded="OnUnloaded"')
+    Set-Content -Path $elementXaml -Value $elementXamlText -Encoding UTF8
+}
+
+$elementCodeText = Get-Content -Raw -Encoding UTF8 $elementCode
+if ($elementCodeText -notmatch 'RequestInversion') {
     $usingAnchor = 'using CommunityToolkit.Mvvm.DependencyInjection;'
-    if (!$codeText.Contains($usingAnchor)) { throw 'Could not find C# using anchor.' }
-    $usingInsert = $usingAnchor + [Environment]::NewLine + 'using System.Numerics;' + [Environment]::NewLine + 'using Microsoft.Graphics.Canvas.Effects;' + [Environment]::NewLine + 'using Windows.UI.Composition;' + [Environment]::NewLine + 'using Windows.UI.Xaml.Hosting;'
-    $codeText = $codeText.Replace($usingAnchor, $usingInsert)
+    if (!$elementCodeText.Contains($usingAnchor)) { throw 'Could not find PlayerElement using anchor.' }
+    $usingInsert = $usingAnchor + [Environment]::NewLine + 'using System;' + [Environment]::NewLine + 'using System.Numerics;' + [Environment]::NewLine + 'using Microsoft.Graphics.Canvas.Effects;' + [Environment]::NewLine + 'using Windows.UI.Composition;' + [Environment]::NewLine + 'using Windows.UI.Xaml.Hosting;'
+    $elementCodeText = $elementCodeText.Replace($usingAnchor, $usingInsert)
+
+    $eventAnchor = '    public event RoutedEventHandler? Click;'
+    if (!$elementCodeText.Contains($eventAnchor)) { throw 'Could not find PlayerElement event anchor.' }
+    $elementCodeText = $elementCodeText.Replace($eventAnchor, $eventAnchor + [Environment]::NewLine + [Environment]::NewLine + '    public static event Action<bool>? InversionRequested;' + [Environment]::NewLine + '    public static void RequestInversion(bool enabled) => InversionRequested?.Invoke(enabled);')
+
+    $unloadedAnchor = '    private void OnUnloaded(object sender, RoutedEventArgs e)' + [Environment]::NewLine + '    {'
+    if (!$elementCodeText.Contains($unloadedAnchor)) { throw 'Could not find OnUnloaded anchor.' }
+    $elementCodeText = $elementCodeText.Replace($unloadedAnchor, $unloadedAnchor + [Environment]::NewLine + '        InversionRequested -= SetInversion;')
+
+    $loadedAnchor = '    private void VlcVideoView_OnInitialized(object sender, VideoViewInitializedEventArgs e)'
+    if (!$elementCodeText.Contains($loadedAnchor)) { throw 'Could not find VlcVideoView initialization anchor.' }
+    $loadedMethod = @'
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        InversionRequested -= SetInversion;
+        InversionRequested += SetInversion;
+    }
+
+'@
+    $elementCodeText = $elementCodeText.Replace($loadedAnchor, $loadedMethod + $loadedAnchor)
+
+    $resizeAnchor = '        ViewModel.UpdatePlayerViewSize(e.NewSize);'
+    if (!$elementCodeText.Contains($resizeAnchor)) { throw 'Could not find video size-change anchor.' }
+    $elementCodeText = $elementCodeText.Replace($resizeAnchor, $resizeAnchor + [Environment]::NewLine + '        if (_invertOverlay is not null) _invertOverlay.Size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);')
 
     $method = @'
 
     private SpriteVisual? _invertOverlay;
     private bool _isInverted;
 
-    private void InvertButton_OnClick(object sender, RoutedEventArgs e)
+    private void SetInversion(bool enabled)
     {
-        _isInverted = !_isInverted;
-        InvertButton.Content = _isInverted ? "关闭反色" : "反色";
+        if (_isInverted == enabled) return;
+        _isInverted = enabled;
 
         if (!_isInverted)
         {
@@ -73,9 +127,7 @@ if ($codeText -notmatch 'InvertButton_OnClick') {
 
         var compositor = ElementCompositionPreview.GetElementVisual(VlcVideoView).Compositor;
 
-        // Match the website's CSS filter order:
-        // brightness(0.9) -> invert(1) -> hue-rotate(180deg).
-        // Keep this as an effect graph rather than a hand-written "smart" pixel algorithm.
+        // Match the website's CSS filter order: brightness(0.9) -> invert(1) -> hue-rotate(180deg).
         var effect = new HueRotationEffect
         {
             Name = "MosuanHueRotation",
@@ -111,10 +163,10 @@ if ($codeText -notmatch 'InvertButton_OnClick') {
     }
 
 '@
-    $lastBrace = $codeText.LastIndexOf('}')
+    $lastBrace = $elementCodeText.LastIndexOf('}')
     if ($lastBrace -lt 0) { throw 'Could not find PlayerElement class closing brace.' }
-    $codeText = $codeText.Insert($lastBrace, $method)
-    Set-Content -Path $code -Value $codeText -Encoding UTF8
+    $elementCodeText = $elementCodeText.Insert($lastBrace, $method)
+    Set-Content -Path $elementCode -Value $elementCodeText -Encoding UTF8
 }
 
-Write-Host 'Mosuan first-pass color inversion patch applied.'
+Write-Host 'Mosuan inversion toggle moved to PlayerControls playback bar.'
