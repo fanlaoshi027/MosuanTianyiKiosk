@@ -63,7 +63,11 @@ jobs:
           "PACKAGE_CERTIFICATE=$pfxPath" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Certificate ready: Subject=$($cert.Subject); Thumbprint=$($cert.Thumbprint)"
 
-      - name: Apply first-pass color inversion overlay
+      - name: Apply Mosuan dark player theme
+        shell: pwsh
+        run: .\\Patches\\Apply-MosuanPlayerTheme.ps1
+
+      - name: Apply color inversion control
         shell: pwsh
         run: .\\Patches\\Apply-MosuanColorInversion.ps1
 
