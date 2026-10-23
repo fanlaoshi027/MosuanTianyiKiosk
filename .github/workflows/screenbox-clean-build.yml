@@ -63,6 +63,10 @@ jobs:
           "PACKAGE_CERTIFICATE=$pfxPath" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Certificate ready: Subject=$($cert.Subject); Thumbprint=$($cert.Thumbprint)"
 
+      - name: Apply Mosuan native video picker
+        shell: pwsh
+        run: .\\Patches\\Apply-MosuanOpenVideosPicker.ps1
+
       - name: Apply Mosuan dark player theme
         shell: pwsh
         run: .\\Patches\\Apply-MosuanPlayerTheme.ps1
