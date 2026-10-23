@@ -54,7 +54,7 @@ if ($csText -notmatch 'MosuanOpenVideos_Click') {
         var picker = new FileOpenPicker
         {
             ViewMode = PickerViewMode.List,
-            SuggestedStartLocation = PickerLocationId.Videos
+            SuggestedStartLocation = PickerLocationId.VideosLibrary
         };
         foreach (var extension in new[] { ".mp4", ".mkv", ".mov", ".avi", ".wmv", ".m4v", ".webm", ".mpg", ".mpeg" })
         {
