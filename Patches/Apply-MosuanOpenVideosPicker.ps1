@@ -8,8 +8,13 @@ if (!(Test-Path $page) -or !(Test-Path $code)) { throw 'PlayerPage source files 
 # existing OnDropAsync pipeline, preserving its supported-file and playlist behavior.
 $xamlText = Get-Content -Raw -Encoding UTF8 $page
 if ($xamlText -notmatch 'MosuanOpenVideosButton') {
-    $rootClose = $xamlText.LastIndexOf('</Grid>')
-    if ($rootClose -lt 0) { throw 'Could not locate LayoutRoot closing Grid.' }
+    # XAML property elements (including VisualStateManager.VisualStateGroups) must
+    # follow all Grid children. Insert the button immediately before that property
+    # element, not before the final </Grid>, which is after the property element.
+    $propertyMarker = '<VisualStateManager.VisualStateGroups>'
+    $insertAt = $xamlText.IndexOf($propertyMarker)
+    if ($insertAt -lt 0) { throw 'Could not locate VisualStateManager.VisualStateGroups in LayoutRoot.' }
+
     $button = @'
         <Button
             x:Name="MosuanOpenVideosButton"
@@ -20,10 +25,9 @@ if ($xamlText -notmatch 'MosuanOpenVideosButton') {
             Padding="12,6"
             Content="打开视频"
             AutomationProperties.Name="打开本地视频"
-            Click="MosuanOpenVideos_Click"
-            Panel.ZIndex="100" />
+            Click="MosuanOpenVideos_Click" />
 '@
-    $xamlText = $xamlText.Insert($rootClose, $button + [Environment]::NewLine + '    ')
+    $xamlText = $xamlText.Insert($insertAt, $button + [Environment]::NewLine + '    ')
     Set-Content -Path $page -Value $xamlText -Encoding UTF8
 }
 
