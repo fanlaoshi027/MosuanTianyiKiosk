@@ -44,7 +44,11 @@ if ($controlsXamlText -notmatch 'x:Name="InvertButton"') {
                 IsEnabled="{x:Bind ViewModel.HasVideo, Mode=OneWay}"
                 Style="{StaticResource PlayerToggleButtonStyle}"
                 Checked="InvertButton_OnChecked"
-                Unchecked="InvertButton_OnUnchecked" />
+                Unchecked="InvertButton_OnUnchecked">
+                <ToggleButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="I" Modifiers="Control" Invoked="InvertKeyboardAccelerator_OnInvoked" />
+                </ToggleButton.KeyboardAccelerators>
+            </ToggleButton>
 '@
     $controlsXamlText = $controlsXamlText.Replace($anchor, $insert.TrimEnd())
     Set-Content -Path $controlsXaml -Value $controlsXamlText -Encoding UTF8
@@ -66,6 +70,12 @@ if ($controlsCodeText -notmatch 'InvertButton_OnChecked') {
         PlayerElement.RequestInversion(false);
     }
 
+    private void InvertKeyboardAccelerator_OnInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        InvertButton.IsChecked = !(InvertButton.IsChecked ?? false);
+        args.Handled = true;
+    }
+
 '@
     $controlsCodeText = $controlsCodeText.Replace($anchor, $methods + $anchor)
     Set-Content -Path $controlsCode -Value $controlsCodeText -Encoding UTF8
@@ -81,7 +91,8 @@ $elementCodeText = Get-Content -Raw -Encoding UTF8 $elementCode
 if ($elementCodeText -notmatch 'RequestInversion') {
     $usingAnchor = 'using CommunityToolkit.Mvvm.DependencyInjection;'
     if (!$elementCodeText.Contains($usingAnchor)) { throw 'Could not find PlayerElement using anchor.' }
-    $usingInsert = $usingAnchor + [Environment]::NewLine + 'using System;' + [Environment]::NewLine + 'using System.Numerics;' + [Environment]::NewLine + 'using Microsoft.Graphics.Canvas.Effects;' + [Environment]::NewLine + 'using Windows.UI.Composition;' + [Environment]::NewLine + 'using Windows.UI.Xaml.Hosting;'
+    $usingInsert = $usingAnchor + [Environment]::NewLine + 'using System;' + [Environment]::NewLine + 'using System.Numerics;' + [Environment]::NewLine + 'using Microsoft.Graphics.Canvas.Effects;
+using Windows.System;' + [Environment]::NewLine + 'using Windows.UI.Composition;' + [Environment]::NewLine + 'using Windows.UI.Xaml.Hosting;'
     $elementCodeText = $elementCodeText.Replace($usingAnchor, $usingInsert)
 
     $eventAnchor = '    public event RoutedEventHandler? Click;'
