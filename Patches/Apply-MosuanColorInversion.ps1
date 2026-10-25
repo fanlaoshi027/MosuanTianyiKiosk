@@ -40,8 +40,10 @@ if ($controlsXamlText -notmatch 'x:Name="InvertButton"') {
                 x:Name="InvertButton"
                 Margin="0,0,4,0"
                 Content="反色"
-                AutomationProperties.Name="视频反色"
+                AutomationProperties.Name="视频反色（Ctrl+I）"
+                ToolTipService.ToolTip="切换视频画面反色；快捷键 Ctrl+I"
                 IsEnabled="{x:Bind ViewModel.HasVideo, Mode=OneWay}"
+                IsTabStop="True"
                 Style="{StaticResource PlayerToggleButtonStyle}"
                 Checked="InvertButton_OnChecked"
                 Unchecked="InvertButton_OnUnchecked">
