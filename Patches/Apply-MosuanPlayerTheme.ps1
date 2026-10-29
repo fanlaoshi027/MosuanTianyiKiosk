@@ -22,6 +22,33 @@ $playerText = $playerText.Replace('FallbackColor="#2C2C2C"', 'FallbackColor="#10
 $playerText = $playerText.Replace('TintColor="#202020"', 'TintColor="#0B0D10"')
 $playerText = $playerText.Replace('TintOpacity="0.5"', 'TintOpacity="0.72"')
 
+# Mosuan custom player identity: deep-sea navy surfaces with a restrained orange accent.
+# Apply to the immersive player chrome only; do not place any visual effect over the video surface.
+$playerText = $playerText.Replace(
+    '<Color x:Key="BackgroundAcrylicTintColor">#202020</Color>',
+    '<Color x:Key="BackgroundAcrylicTintColor">#101B2B</Color>'
+)
+$playerText = $playerText.Replace(
+    '<Color x:Key="BackgroundAcrylicTintFallbackColor">#2C2C2C</Color>',
+    '<Color x:Key="BackgroundAcrylicTintFallbackColor">#101B2B</Color>'
+)
+$playerText = $playerText.Replace(
+    '<GradientStop Offset="0" Color="{StaticResource SystemAltMediumColor}" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="0.5" Color="{StaticResource SystemAltLowColor}" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="1" Color="#00000000" />',
+    '<GradientStop Offset="0" Color="#F20B1422" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="0.55" Color="#B8101B2D" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="1" Color="#00101B2B" />'
+)
+$playerText = $playerText.Replace(
+    '<GradientStop Offset="0" Color="#00000000" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="1" Color="{StaticResource SystemAltMediumColor}" />',
+    '<GradientStop Offset="0" Color="#FFFF8A32" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="0.018" Color="#FFFF8A32" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="0.035" Color="#E6101B2D" />' + [Environment]::NewLine +
+    '                            <GradientStop Offset="1" Color="#F20A1220" />'
+)
+
 # Hide the large album-art backdrop. The video surface remains untouched.
 if ($playerText -notmatch 'x:Name="BackgroundElement"[^>]*Visibility="Collapsed"') {
     $playerText = [regex]::Replace(
