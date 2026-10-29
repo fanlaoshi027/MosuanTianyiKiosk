@@ -56,6 +56,16 @@ if ($controlsXamlText -notmatch 'x:Name="InvertButton"') {
     Set-Content -Path $controlsXaml -Value $controlsXamlText -Encoding UTF8
 }
 
+# Ctrl+I belongs to video inversion. Move the original Properties command to Ctrl+Shift+P
+# so the context-menu accelerator cannot steal the inversion shortcut.
+$controlsXamlText = Get-Content -Raw -Encoding UTF8 $controlsXaml
+$propertiesShortcut = '<KeyboardAccelerator Key="I" Modifiers="Control" />'
+$replacementShortcut = '<KeyboardAccelerator Key="P" Modifiers="Control,Shift" />'
+if ($controlsXamlText.Contains($propertiesShortcut)) {
+    $controlsXamlText = $controlsXamlText.Replace($propertiesShortcut, $replacementShortcut)
+    Set-Content -Path $controlsXaml -Value $controlsXamlText -Encoding UTF8
+}
+
 # Wire the control-bar toggle to the PlayerElement that owns the video surface.
 $controlsCodeText = Get-Content -Raw -Encoding UTF8 $controlsCode
 if ($controlsCodeText -notmatch 'InvertButton_OnChecked') {
