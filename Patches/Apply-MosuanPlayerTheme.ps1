@@ -29,6 +29,10 @@ $playerText = $playerText.Replace(
     '<Color x:Key="BackgroundAcrylicTintColor">#101B2B</Color>'
 )
 $playerText = $playerText.Replace(
+    '<Color x:Key="BackgroundAcrylicTintFallbackColor">#101318</Color>',
+    '<Color x:Key="BackgroundAcrylicTintFallbackColor">#101B2B</Color>'
+)
+$playerText = $playerText.Replace(
     '<Color x:Key="BackgroundAcrylicTintFallbackColor">#2C2C2C</Color>',
     '<Color x:Key="BackgroundAcrylicTintFallbackColor">#101B2B</Color>'
 )
