@@ -49,6 +49,23 @@ $playerText = $playerText.Replace(
     '                            <GradientStop Offset="1" Color="#F20A1220" />'
 )
 
+# Add a restrained Mosuan brand marker above the current media title.
+if ($playerText -notmatch 'x:Name="MosuanBrandLabel"') {
+    $brandAnchor = '                    <TextBlock' + [Environment]::NewLine + '                        x:Name="TitleBarTitleTextBlock"'
+    if (!$playerText.Contains($brandAnchor)) { throw 'Could not find player title text anchor for Mosuan branding.' }
+    $brand = @'
+                    <TextBlock
+                        x:Name="MosuanBrandLabel"
+                        Margin="0,0,0,2"
+                        FontSize="10"
+                        FontWeight="SemiBold"
+                        CharacterSpacing="180"
+                        Foreground="#FFFF9A52"
+                        Text="MOSUAN  /  VIDEO STUDIO" />
+'@
+    $playerText = $playerText.Replace($brandAnchor, $brand + $brandAnchor)
+}
+
 # Hide the large album-art backdrop. The video surface remains untouched.
 if ($playerText -notmatch 'x:Name="BackgroundElement"[^>]*Visibility="Collapsed"') {
     $playerText = [regex]::Replace(
