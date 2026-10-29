@@ -1,8 +1,8 @@
 name: Clean Official Screenbox Build
 
+# Build is intentionally manual while the Mosuan player UI is being refactored.
+# Run workflow_dispatch only after the UI work is ready for an integrated test.
 on:
-  push:
-    branches: [screenbox-clean-libvlc3, screenbox-smart-invert-spike]
   workflow_dispatch:
 
 permissions:
