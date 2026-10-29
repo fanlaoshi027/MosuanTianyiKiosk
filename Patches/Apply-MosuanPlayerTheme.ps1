@@ -3,9 +3,11 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot '..\Screenbox'
 $app = Join-Path $root 'Screenbox\App.xaml.cs'
 $player = Join-Path $root 'Screenbox\Pages\PlayerPage.xaml'
+$controls = Join-Path $root 'Screenbox\Controls\PlayerControls.xaml'
 
 if (!(Test-Path $app)) { throw "Screenbox App.xaml.cs not found: $app" }
 if (!(Test-Path $player)) { throw "Screenbox PlayerPage.xaml not found: $player" }
+if (!(Test-Path $controls)) { throw "Screenbox PlayerControls.xaml not found: $controls" }
 
 # Force the application chrome into a consistent dark theme.
 $appText = Get-Content -Raw -Encoding UTF8 $app
@@ -81,4 +83,39 @@ if ($playerText -notmatch 'x:Name="BackgroundElement"[^>]*Visibility="Collapsed"
 }
 
 Set-Content -Path $player -Value $playerText -Encoding UTF8
-Write-Host 'Mosuan player theme patch applied.'
+
+# Rebuild the playback toolbar as a distinct Mosuan control dock.
+# Keep the existing commands and bindings; only restyle the visual container.
+$controlsText = Get-Content -Raw -Encoding UTF8 $controls
+if ($controlsText -notmatch 'x:Name="MosuanControlDock"') {
+    $seekAnchor = '        <!--  Seek  -->'
+    if (!$controlsText.Contains($seekAnchor)) { throw 'Could not find SeekBar anchor in PlayerControls.xaml.' }
+    $dock = @'
+        <!-- Mosuan control dock: independent from the video surface -->
+        <Border
+            x:Name="MosuanControlDock"
+            Grid.Row="0"
+            Grid.RowSpan="3"
+            Grid.Column="0"
+            Grid.ColumnSpan="2"
+            Margin="0,2,0,0"
+            Background="#F20B1422"
+            BorderBrush="#553C526D"
+            BorderThickness="1"
+            CornerRadius="12"
+            IsHitTestVisible="False" />
+        <Border
+            Grid.Row="0"
+            Grid.Column="0"
+            Grid.ColumnSpan="2"
+            Height="2"
+            Margin="14,0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="#FFFF8A32"
+            IsHitTestVisible="False" />
+'@
+    $controlsText = $controlsText.Replace($seekAnchor, $dock + [Environment]::NewLine + $seekAnchor)
+    Set-Content -Path $controls -Value $controlsText -Encoding UTF8
+}
+Write-Host 'Mosuan player theme and control dock patches applied.'
