@@ -67,6 +67,10 @@ jobs:
         shell: pwsh
         run: .\\Patches\\Apply-MosuanOpenVideosPicker.ps1
 
+      - name: Apply Mosuan folder playlist and SMB picker
+        shell: pwsh
+        run: .\\Patches\\Apply-MosuanFolderPlaylist.ps1
+
       - name: Apply Mosuan dark player theme
         shell: pwsh
         run: .\\Patches\\Apply-MosuanPlayerTheme.ps1
