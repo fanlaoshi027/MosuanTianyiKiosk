@@ -87,6 +87,33 @@ Set-Content -Path $player -Value $playerText -Encoding UTF8
 # Rebuild the playback toolbar as a distinct Mosuan control dock.
 # Keep the existing commands and bindings; only restyle the visual container.
 $controlsText = Get-Content -Raw -Encoding UTF8 $controls
+
+# Define dedicated player-control styles while preserving all existing commands and bindings.
+if ($controlsText -notmatch 'x:Key="MosuanPlayerButtonStyle"') {
+    $resourceAnchor = '            <!--  Preset values for playback speed options  -->'
+    if (!$controlsText.Contains($resourceAnchor)) { throw 'Could not find PlayerControls resource insertion point.' }
+    $styles = @'
+            <!-- Mosuan compact control language -->
+            <Style x:Key="MosuanPlayerButtonStyle" BasedOn="{StaticResource PlayerButtonStyle}" TargetType="Button">
+                <Setter Property="Width" Value="42" />
+                <Setter Property="Height" Value="42" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="3,0" />
+                <Setter Property="CornerRadius" Value="10" />
+            </Style>
+            <Style x:Key="MosuanPlayerToggleButtonStyle" BasedOn="{StaticResource PlayerToggleButtonStyle}" TargetType="ToggleButton">
+                <Setter Property="Width" Value="40" />
+                <Setter Property="Height" Value="40" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="2,0" />
+                <Setter Property="CornerRadius" Value="10" />
+            </Style>
+'@
+    $controlsText = $controlsText.Replace($resourceAnchor, $styles + [Environment]::NewLine + $resourceAnchor)
+}
+$controlsText = $controlsText.Replace('Style="{StaticResource PlayerButtonStyle}"', 'Style="{StaticResource MosuanPlayerButtonStyle}"')
+$controlsText = $controlsText.Replace('Style="{StaticResource PlayerToggleButtonStyle}"', 'Style="{StaticResource MosuanPlayerToggleButtonStyle}"')
+
 if ($controlsText -notmatch 'x:Name="MosuanControlDock"') {
     $seekAnchor = '        <!--  Seek  -->'
     if (!$controlsText.Contains($seekAnchor)) { throw 'Could not find SeekBar anchor in PlayerControls.xaml.' }
