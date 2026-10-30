@@ -78,5 +78,5 @@ jobs:
           path: |
             C:\DeployOutput\*_Test\
             !C:\DeployOutput\*_Test\*.msix
-          compression-level: 0
+          compression-level: 9
           if-no-files-found: error
