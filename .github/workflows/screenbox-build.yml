@@ -77,6 +77,10 @@ jobs:
           name: MosuanPlayer-x64-core
           path: |
             C:\DeployOutput\*_Test\
-            !C:\DeployOutput\*_Test\*.msix
+            !C:\DeployOutput\*_Test\*.appxsym
+            !C:\DeployOutput\*_Test\Dependencies\arm\
+            !C:\DeployOutput\*_Test\Dependencies\arm64\
+            !C:\DeployOutput\*_Test\Dependencies\x86\
+            !C:\DeployOutput\*_Test\Dependencies\Win32\
           compression-level: 9
           if-no-files-found: error
