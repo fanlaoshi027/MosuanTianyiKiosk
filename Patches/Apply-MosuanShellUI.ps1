@@ -26,24 +26,24 @@ if (!$main.Contains('<Grid x:Name="ContentGrid" Padding="0,48,0,0" Background="#
 Set-Content -Path $mainPath -Value $main -Encoding UTF8
 
 # Home landing page: preserve all existing bindings and navigation behavior.
-$home = Get-Content -Raw -Encoding UTF8 $homePath
-if (!$home.Contains('<Grid Background="#101318">')) {
+$homeXaml = Get-Content -Raw -Encoding UTF8 $homePath
+if (!$homeXaml.Contains('<Grid Background="#101318">')) {
     $homeAnchor = '    <Grid>' + [Environment]::NewLine + '        <Grid.RowDefinitions>'
-    if (!$home.Contains($homeAnchor)) { throw 'HomePage root Grid anchor not found' }
-    $home = $home.Replace($homeAnchor, $homeAnchor.Replace('<Grid>', '<Grid Background="#101318">'))
+    if (!$homeXaml.Contains($homeAnchor)) { throw 'HomePage root Grid anchor not found' }
+    $homeXaml = $homeXaml.Replace($homeAnchor, $homeAnchor.Replace('<Grid>', '<Grid Background="#101318">'))
 }
-if (!$home.Contains('Foreground="#F3F4F6"')) {
-    $home = $home.Replace(
+if (!$homeXaml.Contains('Foreground="#F3F4F6"')) {
+    $homeXaml = $homeXaml.Replace(
         '                Style="{StaticResource TitleMediumTextBlockStyle}"',
         '                Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="30"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"'
     )
 }
-if (!$home.Contains('Background="#151B23"')) {
-    $home = $home.Replace(
+if (!$homeXaml.Contains('Background="#151B23"')) {
+    $homeXaml = $homeXaml.Replace(
         '            x:Name="RecentSubHeaderGrid"',
         '            x:Name="RecentSubHeaderGrid"' + [Environment]::NewLine + '            Background="#151B23"'
     )
 }
-Set-Content -Path $homePath -Value $home -Encoding UTF8
+Set-Content -Path $homePath -Value $homeXaml -Encoding UTF8
 
 Write-Host 'Mosuan shell UI v1 applied: unified dark canvas, navigation pane, home heading and recent section.'
