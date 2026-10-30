@@ -71,6 +71,65 @@ jobs:
             -p:Platform=x64 `
             -p:AppxPackageDir=$env:PackageDir `
             -p:UapAppxPackageBuildMode=SideloadOnly
+      - name: Sign MSIX and package publisher certificate
+        shell: pwsh
+        env:
+          PackageDir: C:\\DeployOutput\\
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = @(Get-ChildItem -Path $env:PackageDir -Recurse -Filter '*.msix' -File)
+          if ($packages.Count -ne 1) { throw "Expected exactly one MSIX package, found $($packages.Count)." }
+          $msix = $packages[0]
+
+          $publisher = 'CN=ABCDF790-DBE4-48F7-8204-32FCB69ADF9C'
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $publisher `
+            -FriendlyName 'Mosuan Player Sideload Signing' `
+            -CertStoreLocation 'Cert:\\CurrentUser\\My' `
+            -KeyAlgorithm RSA `
+            -KeyLength 2048 `
+            -HashAlgorithm SHA256 `
+            -KeyUsage DigitalSignature `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3') `
+            -NotAfter (Get-Date).AddYears(5)
+
+          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\\10\\bin'
+          $signtool = Get-ChildItem -Path $sdkRoot -Directory |
+            Sort-Object { try { [version]$_.Name } catch { [version]'0.0' } } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\\signtool.exe' } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $signtool) { throw 'Windows SDK SignTool.exe was not found.' }
+
+          & $signtool sign /fd SHA256 /sha1 $cert.Thumbprint $msix.FullName
+          if ($LASTEXITCODE -ne 0) { throw "SignTool signing failed: $LASTEXITCODE" }
+          & $signtool verify /pa /v $msix.FullName
+          if ($LASTEXITCODE -ne 0) { throw "SignTool verification failed: $LASTEXITCODE" }
+
+          $certificatePath = Join-Path $msix.DirectoryName 'MosuanPlayerSigning.cer'
+          Export-Certificate -Cert $cert -FilePath $certificatePath -Type CERT | Out-Null
+
+          $installerPath = Join-Path $msix.DirectoryName 'Install-MosuanPlayer.ps1'
+          @'
+          $ErrorActionPreference = 'Stop'
+          $root = $PSScriptRoot
+          $certificate = Join-Path $root 'MosuanPlayerSigning.cer'
+          $installer = Join-Path $root 'Install.ps1'
+          if (-not (Test-Path $certificate)) { throw "Publisher certificate not found: $certificate" }
+          if (-not (Test-Path $installer)) { throw "App package installer not found: $installer" }
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+              throw 'Please right-click Install-MosuanPlayer.ps1 and choose Run with PowerShell as Administrator.'
+          }
+          Import-Certificate -FilePath $certificate -CertStoreLocation 'Cert:\\LocalMachine\\TrustedPeople' | Out-Null
+          & $installer
+          if ($LASTEXITCODE -ne 0) { throw "App installer returned exit code $LASTEXITCODE" }
+          '@ | Set-Content -Path $installerPath -Encoding UTF8
+
+          Write-Host "Signed package: $($msix.Name)"
+          Write-Host "Publisher certificate: $certificatePath"
+
       - name: Upload sideload artifact
         uses: actions/upload-artifact@v7
         with:
