@@ -20,6 +20,10 @@ if (!$main.Contains('PaneBackground="#151B23"')) {
     if (!$main.Contains($navAnchor)) { throw 'MainPage NavView anchor not found' }
     $main = $main.Replace($navAnchor, $navAnchor + [Environment]::NewLine + '            Background="#101318"' + [Environment]::NewLine + '            PaneBackground="#151B23"')
 }
+if (!$main.Contains('OpenPaneLength="232"')) {
+    $navAnchor = '            x:Name="NavView"'
+    $main = $main.Replace($navAnchor, $navAnchor + [Environment]::NewLine + '            OpenPaneLength="232"' + [Environment]::NewLine + '            CompactPaneLength="64"')
+}
 if (!$main.Contains('<Grid x:Name="ContentGrid" Padding="0,48,0,0" Background="#101318">')) {
     $main = $main.Replace('<Grid x:Name="ContentGrid" Padding="0,48,0,0">', '<Grid x:Name="ContentGrid" Padding="0,48,0,0" Background="#101318">')
 }
