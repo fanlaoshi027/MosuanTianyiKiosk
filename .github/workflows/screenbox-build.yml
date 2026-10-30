@@ -37,6 +37,9 @@ jobs:
       - name: Apply Mosuan UI refactor
         shell: pwsh
         run: .\Patches\Apply-MosuanUIRefactor.ps1
+      - name: Apply Mosuan video tools
+        shell: pwsh
+        run: .\Patches\Apply-MosuanVideoTools.ps1
       - name: Apply Mosuan crop and mask features
         shell: pwsh
         run: .\Patches\Apply-MosuanPlayerFeatures.ps1
