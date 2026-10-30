@@ -104,11 +104,15 @@ jobs:
 
           & $signtool sign /fd SHA256 /sha1 $cert.Thumbprint $msix.FullName
           if ($LASTEXITCODE -ne 0) { throw "SignTool signing failed: $LASTEXITCODE" }
-          & $signtool verify /pa /v $msix.FullName
-          if ($LASTEXITCODE -ne 0) { throw "SignTool verification failed: $LASTEXITCODE" }
 
           $certificatePath = Join-Path $msix.DirectoryName 'MosuanPlayerSigning.cer'
           Export-Certificate -Cert $cert -FilePath $certificatePath -Type CERT | Out-Null
+
+          Import-Certificate -FilePath $certificatePath -CertStoreLocation 'Cert:\LocalMachine\Root' | Out-Null
+          Import-Certificate -FilePath $certificatePath -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
+
+          & $signtool verify /pa /v $msix.FullName
+          if ($LASTEXITCODE -ne 0) { throw "SignTool verification failed: $LASTEXITCODE" }
 
           $installerPath = Join-Path $msix.DirectoryName 'Install-MosuanPlayer.ps1'
           @'
@@ -122,6 +126,7 @@ jobs:
           if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
               throw 'Please right-click Install-MosuanPlayer.ps1 and choose Run with PowerShell as Administrator.'
           }
+          Import-Certificate -FilePath $certificate -CertStoreLocation 'Cert:\LocalMachine\Root' | Out-Null
           Import-Certificate -FilePath $certificate -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
           & $installer
           if ($LASTEXITCODE -ne 0) { throw "App installer returned exit code $LASTEXITCODE" }
