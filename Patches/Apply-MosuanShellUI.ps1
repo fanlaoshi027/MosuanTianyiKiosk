@@ -15,9 +15,12 @@ if (!$main.Contains('<Grid Background="#101318">')) {
     if (!$main.Contains($mainAnchor)) { throw 'MainPage root Grid anchor not found' }
     $main = $main.Replace($mainAnchor, $mainAnchor.Replace('<Grid>', '<Grid Background="#101318">'))
 }
-if (!$main.Contains('Background="#101318"')) {
-    $navAnchor = '            x:Name="NavView"'
-    if (!$main.Contains($navAnchor)) { throw 'MainPage NavView anchor not found' }
+$navAnchor = '            x:Name="NavView"'
+if (!$main.Contains($navAnchor)) { throw 'MainPage NavView anchor not found' }
+$navStart = $main.IndexOf($navAnchor)
+$navTagEnd = $main.IndexOf('>', $navStart)
+$navTag = $main.Substring($navStart, $navTagEnd - $navStart)
+if (!$navTag.Contains('Background=')) {
     $main = $main.Replace($navAnchor, $navAnchor + [Environment]::NewLine + '            Background="#101318"')
 }
 if (!$main.Contains('OpenPaneLength="232"')) {
