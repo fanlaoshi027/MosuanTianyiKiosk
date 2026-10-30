@@ -21,7 +21,6 @@ if (!$xaml.Contains('x:Name="MosuanVideoToolsButton"')) {
             Padding="14,10"
             HorizontalAlignment="Right"
             VerticalAlignment="Center"
-            Panel.ZIndex="40"
             Background="#E6202731"
             BorderBrush="#667F8FA6"
             BorderThickness="1"
@@ -44,11 +43,12 @@ if (!$xaml.Contains('x:Name="MosuanVideoToolsButton"')) {
             </Button.Flyout>
         </Button>
 '@
-    $anchor = '(?s)(</Grid>\s*</Page>\s*)$'
-    if ($xaml -notmatch $anchor) { throw 'PlayerPage root Grid closing anchor not found' }
-    $newline = [Environment]::NewLine
-    $replacement = $button + $newline + '</Grid>' + $newline + '</Page>' + $newline
-    $xaml = [regex]::Replace($xaml, $anchor, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $replacement }, 1)
+    # Grid's VisualStateManager property must remain after all implicit child elements.
+    # Insert the tool button immediately before that property element, not after it.
+    $anchor = '<VisualStateManager.VisualStateGroups>'
+    $insertAt = $xaml.LastIndexOf($anchor, [StringComparison]::Ordinal)
+    if ($insertAt -lt 0) { throw 'PlayerPage VisualStateManager anchor not found' }
+    $xaml = $xaml.Insert($insertAt, $button + [Environment]::NewLine)
     Set-Content -Path $xamlPath -Value $xaml -Encoding UTF8
 }
 
