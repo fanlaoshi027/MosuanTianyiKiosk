@@ -47,6 +47,9 @@ $navStateResources = @'
             <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#F28C28" />
             <Thickness x:Key="NavigationViewItemMargin">0,3,0,3</Thickness>
             <Thickness x:Key="NavigationViewItemSeparatorMargin">0,8,0,8</Thickness>
+            <Thickness x:Key="NavigationViewItemContentPresenterMargin">8,-1,12,-1</Thickness>
+            <Thickness x:Key="NavigationViewCompactItemContentPresenterMargin">0,0,0,0</Thickness>
+            <x:Double x:Key="NavigationViewSelectionIndicatorWidth">4</x:Double>
 '@
 if (!$navStyles.Contains('NavigationViewItemBackgroundSelected"')) {
     $navStyles = $navStyles.Replace(
