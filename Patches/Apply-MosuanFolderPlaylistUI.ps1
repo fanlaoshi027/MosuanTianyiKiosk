@@ -79,7 +79,24 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
 
     private void ShowFolderPlaylistError(Exception exception)
     {
-        FolderPlaylistStatus.Text = $"操作失败：{exception.Message}。如果文件夹权限已失效，请移除后重新添加。";
+        var detail = exception.Message;
+        var cause = exception;
+        while (cause.InnerException is not null)
+            cause = cause.InnerException;
+
+        if (cause is UnauthorizedAccessException)
+        {
+            FolderPlaylistStatus.Text = $"没有访问权限：{detail}。请检查 Windows 共享权限和账号凭据，然后点击“重新授权”。原有播放列表不会被删除。";
+            return;
+        }
+
+        if (cause is System.IO.IOException)
+        {
+            FolderPlaylistStatus.Text = $"文件夹暂时不可访问：{detail}。如果这是 SMB 共享，请先确认电脑已连接同一网络、共享主机在线且共享路径可打开，再点击“刷新”或“重新授权”。";
+            return;
+        }
+
+        FolderPlaylistStatus.Text = $"操作失败：{detail}。如果这是网络共享，请检查网络连接；如果访问权限失效，可点击“重新授权”。";
     }
 
     private async void AddFolderPlaylist_Click(object sender, RoutedEventArgs e)
@@ -127,6 +144,7 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             {
                 await _folderPlaylistService.RefreshAsync(id);
                 RefreshFolderPlaylistItems();
+                FolderPlaylistStatus.Text = "刷新完成，文件列表已更新。";
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
