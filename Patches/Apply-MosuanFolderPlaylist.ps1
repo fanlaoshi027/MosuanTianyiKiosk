@@ -28,6 +28,8 @@ public sealed class MosuanFolderPlaylist
     public string FolderToken { get; set; } = "";
     public List<string> Files { get; set; } = new();
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public int FileCount => Files?.Count ?? 0;
+    public string UpdatedAtText => UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }
 
 public sealed class MosuanFolderPlaylistState
@@ -58,6 +60,8 @@ public sealed class MosuanFolderPlaylistService
             var json = await FileIO.ReadTextAsync(file);
             State = JsonSerializer.Deserialize<MosuanFolderPlaylistState>(json) ?? new();
             State.Playlists ??= new();
+            foreach (var playlist in State.Playlists)
+                playlist.Files ??= new();
         }
         catch
         {
@@ -76,6 +80,8 @@ public sealed class MosuanFolderPlaylistService
     public async Task<MosuanFolderPlaylist?> AddFolderFromPickerAsync()
     {
         var picker = new FolderPicker();
+        // The Windows picker can navigate to local folders and SMB network shares.
+        // FutureAccessList persists the user-granted access for either location.
         picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
         picker.FileTypeFilter.Add("*");
         StorageFolder? folder = await picker.PickSingleFolderAsync();
