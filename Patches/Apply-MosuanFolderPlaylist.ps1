@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using Screenbox.Core.Messages;
 using Windows.Storage;
+using Windows.Storage.AccessCache;
 using Windows.Storage.Pickers;
 
 namespace Screenbox.Models;
@@ -151,14 +152,17 @@ public sealed class MosuanFolderPlaylistService
         var files = await GetVideoFilesAsync(folder);
         if (files.Count == 0) return;
 
-        Messenger.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
+        WeakReferenceMessenger.Default.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
     }
 
     public MosuanFolderPlaylist? Find(string playlistId) =>
         State.Playlists.FirstOrDefault(x => x.Id == playlistId);
 
-    public IReadOnlyList<string> GetFiles(string playlistId) =>
-        Find(playlistId)?.Files ?? Array.Empty<string>();
+    public IReadOnlyList<string> GetFiles(string playlistId)
+    {
+        var playlist = Find(playlistId);
+        return playlist is null ? Array.Empty<string>() : playlist.Files;
+    }
 
     private static async Task<List<string>> ScanFolderAsync(StorageFolder folder)
     {
