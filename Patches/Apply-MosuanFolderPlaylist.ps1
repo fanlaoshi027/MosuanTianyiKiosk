@@ -91,7 +91,7 @@ public sealed class MosuanFolderPlaylistService
         if (existing is not null)
         {
             existing.FolderToken = existing.Id;
-            StorageApplicationPermissions.FutureAccessList.AddOrReplace(existing.FolderToken, folder);
+            global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.AddOrReplace(existing.FolderToken, folder);
             await RefreshAsync(existing.Id);
             return existing;
         }
@@ -102,7 +102,7 @@ public sealed class MosuanFolderPlaylistService
             FolderPath = folder.Path,
             FolderToken = Guid.NewGuid().ToString("N")
         };
-        StorageApplicationPermissions.FutureAccessList.AddOrReplace(playlist.FolderToken, folder);
+        global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.AddOrReplace(playlist.FolderToken, folder);
         playlist.Files = await ScanFolderAsync(folder);
         State.Playlists.Insert(0, playlist);
         await SaveAsync();
@@ -116,7 +116,7 @@ public sealed class MosuanFolderPlaylistService
 
         try
         {
-            var folder = await StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
+            var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
             playlist.FolderPath = folder.Path;
             playlist.Files = await ScanFolderAsync(folder);
             playlist.UpdatedAtUtc = DateTime.UtcNow;
@@ -135,9 +135,9 @@ public sealed class MosuanFolderPlaylistService
         var playlist = Find(playlistId);
         if (playlist is null) return;
         if (!string.IsNullOrWhiteSpace(playlist.FolderToken) &&
-            StorageApplicationPermissions.FutureAccessList.ContainsItem(playlist.FolderToken))
+            global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.ContainsItem(playlist.FolderToken))
         {
-            StorageApplicationPermissions.FutureAccessList.Remove(playlist.FolderToken);
+            global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.Remove(playlist.FolderToken);
         }
         State.Playlists.Remove(playlist);
         await SaveAsync();
@@ -148,11 +148,11 @@ public sealed class MosuanFolderPlaylistService
         var playlist = Find(playlistId);
         if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken)) return;
 
-        var folder = await StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
+        var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
         var files = await GetVideoFilesAsync(folder);
         if (files.Count == 0) return;
 
-        WeakReferenceMessenger.Default.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
+        global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
     }
 
     public MosuanFolderPlaylist? Find(string playlistId) =>
@@ -161,7 +161,8 @@ public sealed class MosuanFolderPlaylistService
     public IReadOnlyList<string> GetFiles(string playlistId)
     {
         var playlist = Find(playlistId);
-        return playlist is null ? Array.Empty<string>() : playlist.Files;
+        if (playlist is null) return Array.Empty<string>();
+        return playlist.Files;
     }
 
     private static async Task<List<string>> ScanFolderAsync(StorageFolder folder)
