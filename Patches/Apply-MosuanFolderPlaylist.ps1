@@ -77,12 +77,18 @@ public sealed class MosuanFolderPlaylistService
             new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    public async Task<MosuanFolderPlaylist?> AddFolderFromPickerAsync()
+    public Task<MosuanFolderPlaylist?> AddFolderFromPickerAsync() =>
+        AddFolderFromPickerAsync(PickerLocationId.VideosLibrary);
+
+    public Task<MosuanFolderPlaylist?> AddNetworkFolderFromPickerAsync() =>
+        AddFolderFromPickerAsync(PickerLocationId.ComputerFolder);
+
+    private async Task<MosuanFolderPlaylist?> AddFolderFromPickerAsync(PickerLocationId startLocation)
     {
+        // The Windows picker handles network discovery and credentials. The selected
+        // StorageFolder is then retained through FutureAccessList for later sessions.
         var picker = new FolderPicker();
-        // The Windows picker can navigate to local folders and SMB network shares.
-        // FutureAccessList persists the user-granted access for either location.
-        picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+        picker.SuggestedStartLocation = startLocation;
         picker.FileTypeFilter.Add("*");
         StorageFolder? folder = await picker.PickSingleFolderAsync();
         return folder is null ? null : await AddFolderAsync(folder);
