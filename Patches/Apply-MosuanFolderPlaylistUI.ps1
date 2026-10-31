@@ -16,7 +16,10 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="文件夹播放列表" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="添加文件夹 / SMB共享" Click="AddFolderPlaylist_Click" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Button Content="添加本地文件夹" Click="AddFolderPlaylist_Click" />
+                    <Button Content="添加 SMB 共享" Click="AddNetworkFolderPlaylist_Click" />
+                </StackPanel>
             </Grid>
             <TextBlock x:Name="FolderPlaylistStatus" Opacity="0.75" TextWrapping="Wrap" />
             <ListView x:Name="FolderPlaylistList" MaxHeight="168" SelectionMode="None">
@@ -85,6 +88,18 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             var added = await _folderPlaylistService.AddFolderFromPickerAsync();
             if (added is not null)
                 FolderPlaylistStatus.Text = $"已添加：{added.Name}（{added.Files.Count} 个视频）";
+            RefreshFolderPlaylistItems();
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+    private async void AddNetworkFolderPlaylist_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var added = await _folderPlaylistService.AddNetworkFolderFromPickerAsync();
+            if (added is not null)
+                FolderPlaylistStatus.Text = $"已添加网络共享：{added.Name}（{added.Files.Count} 个视频）";
             RefreshFolderPlaylistItems();
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
