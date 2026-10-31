@@ -27,6 +27,17 @@ if (!$main.Contains('<Grid x:Name="ContentGrid" Padding="0,48,0,0" Background="#
 }
 Set-Content -Path $mainPath -Value $main -Encoding UTF8
 
+# Navigation pane: override the resource key consumed by NavigationView's own template.
+# Avoid unsupported Background/PaneBackground properties on NavigationViewEx.
+$navStylePath = Join-Path $root 'Styles\NavigationView.xaml'
+if (!(Test-Path $navStylePath)) { throw "Required navigation style file not found: $navStylePath" }
+$navStyles = Get-Content -Raw -Encoding UTF8 $navStylePath
+$navStyles = $navStyles.Replace(
+    '<StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="AcrylicInAppFillColorBaseBrush" />',
+    '<SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#151B23" />'
+)
+Set-Content -Path $navStylePath -Value $navStyles -Encoding UTF8
+
 # Home landing page: preserve all existing bindings and navigation behavior.
 $homeXaml = Get-Content -Raw -Encoding UTF8 $homePath
 if (!$homeXaml.Contains('<Grid Background="#101318">')) {
