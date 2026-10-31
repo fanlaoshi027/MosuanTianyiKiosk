@@ -32,6 +32,25 @@ Set-Content -Path $mainPath -Value $main -Encoding UTF8
 $navStylePath = Join-Path $root 'Styles\NavigationView.xaml'
 if (!(Test-Path $navStylePath)) { throw "Required navigation style file not found: $navStylePath" }
 $navStyles = Get-Content -Raw -Encoding UTF8 $navStylePath
+# Tune NavigationView item states through WinUI theme resource keys, not per-item XAML properties.
+$navStateResources = @'
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#202A36" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#263548" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#263B55" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#304966" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#36516F" />
+            <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#C7D0DC" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#F3F4F6" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#FFFFFF" />
+'@
+if (!$navStyles.Contains('NavigationViewItemBackgroundSelected"')) {
+    $navStyles = $navStyles.Replace(
+        '<ResourceDictionary x:Key="Default">',
+        '<ResourceDictionary x:Key="Default">' + [Environment]::NewLine + $navStateResources
+    )
+}
 $navStyles = $navStyles.Replace(
     '<StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="AcrylicInAppFillColorBaseBrush" />',
     '<SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#151B23" />'
