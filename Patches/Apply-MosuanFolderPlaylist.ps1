@@ -210,13 +210,29 @@ public sealed class MosuanFolderPlaylistService
         return files.Select(x => x.Path).ToList();
     }
 
+    // Scan the whole folder tree so a course or lesson directory can keep its
+    // own subfolder structure without hiding videos from the playlist.
     private static async Task<IReadOnlyList<StorageFile>> GetVideoFilesAsync(StorageFolder folder)
     {
-        var files = await folder.GetFilesAsync();
-        return files
-            .Where(x => IsVideoFile(x.Name))
-            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+        var result = new List<StorageFile>();
+        await CollectVideoFilesAsync(folder, result);
+        return result
+            .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static async Task CollectVideoFilesAsync(StorageFolder folder, List<StorageFile> result)
+    {
+        var files = await folder.GetFilesAsync();
+        foreach (var file in files)
+        {
+            if (IsVideoFile(file.Name))
+                result.Add(file);
+        }
+
+        var folders = await folder.GetFoldersAsync();
+        foreach (var child in folders.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            await CollectVideoFilesAsync(child, result);
     }
 
     public static bool IsVideoFile(string path) =>
