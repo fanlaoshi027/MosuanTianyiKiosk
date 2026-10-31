@@ -22,23 +22,25 @@ $xaml = $xaml.Replace(
     '                Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="28"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"' + [Environment]::NewLine + '                Text="播放列表"'
 )
 
-# A more spacious title row and compact secondary action row.
-$xaml = $xaml.Replace(
-    'Padding="{StaticResource ContentPagePadding}">',
-    'Padding="32,20,32,16">'
-)
-$xaml = $xaml.Replace(
-    'Margin="{StaticResource TopMediumMargin}"',
-    'Margin="0,8,0,0"'
-)
-
-# Keep the playlist cards visually separated from the page background.
-if (!$xaml.Contains('Background="#151B23"')) {
+# Treat the page header and action row as two coordinated surfaces.
+if (!$xaml.Contains('x:Name="HeaderGrid"' + [Environment]::NewLine + '            Grid.Row="0"' + [Environment]::NewLine + '            Background="#151B23"')) {
     $xaml = $xaml.Replace(
-        '            x:Name="SubHeaderGrid"',
-        '            x:Name="SubHeaderGrid"' + [Environment]::NewLine + '            Background="#151B23"'
+        '            x:Name="HeaderGrid"' + [Environment]::NewLine + '            Grid.Row="0"',
+        '            x:Name="HeaderGrid"' + [Environment]::NewLine + '            Grid.Row="0"' + [Environment]::NewLine + '            Background="#151B23"'
     )
 }
+if (!$xaml.Contains('x:Name="SubHeaderGrid"' + [Environment]::NewLine + '            Grid.Row="1"' + [Environment]::NewLine + '            Background="#151B23"')) {
+    $xaml = $xaml.Replace(
+        '            x:Name="SubHeaderGrid"' + [Environment]::NewLine + '            Grid.Row="1"',
+        '            x:Name="SubHeaderGrid"' + [Environment]::NewLine + '            Grid.Row="1"' + [Environment]::NewLine + '            Background="#151B23"'
+    )
+}
+
+# Keep the hierarchy consistent across title, actions and playlist content.
+$xaml = $xaml.Replace('Margin="{StaticResource BottomMediumMargin}"', 'Margin="0,0,0,8"')
+$xaml = $xaml.Replace('Margin="0,0,0,8"' + [Environment]::NewLine + '            Padding="{StaticResource ContentPagePadding}"', 'Margin="0,0,0,8"' + [Environment]::NewLine + '            Padding="32,20,32,16"')
+$xaml = $xaml.Replace('            Padding="{StaticResource ContentPagePadding}">', '            Padding="32,12,32,12">')
+$xaml = $xaml.Replace('Margin="{StaticResource TopMediumMargin}"', 'Margin="0,16,0,0"')
 
 Set-Content -Path $path -Value $xaml -Encoding UTF8
 Write-Host 'Mosuan playlist layout applied: charcoal canvas, localized labels and refined spacing.'
