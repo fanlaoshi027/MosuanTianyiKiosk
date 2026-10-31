@@ -122,6 +122,32 @@ public sealed class MosuanFolderPlaylistService
         return playlist;
     }
 
+    public async Task<bool> ReauthorizeAsync(string playlistId)
+    {
+        var playlist = Find(playlistId);
+        if (playlist is null) return false;
+
+        // Reopen the Windows picker so the user can restore access to an offline
+        // or expired local/SMB folder without losing the playlist entry.
+        var picker = new FolderPicker();
+        picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
+        picker.FileTypeFilter.Add("*");
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder is null) return false;
+
+        if (string.IsNullOrWhiteSpace(playlist.FolderToken))
+            playlist.FolderToken = Guid.NewGuid().ToString("N");
+
+        global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList
+            .AddOrReplace(playlist.FolderToken, folder);
+        playlist.Name = folder.DisplayName;
+        playlist.FolderPath = folder.Path;
+        playlist.Files = await ScanFolderAsync(folder);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
+        await SaveAsync();
+        return true;
+    }
+
     public async Task RefreshAsync(string playlistId)
     {
         var playlist = Find(playlistId);
