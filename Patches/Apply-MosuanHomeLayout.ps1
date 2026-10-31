@@ -25,18 +25,18 @@ $homeXaml = $homeXaml.Replace(
 )
 
 # Keep page headings legible and consistent with the charcoal player shell.
-if (!$homeXaml.Contains('FontSize="30"')) {
-    $homeXaml = $homeXaml.Replace(
-        'Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                Text="首页"',
-        'Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="30"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"' + [Environment]::NewLine + '                Text="首页"'
-    )
-}
-if (!$homeXaml.Contains('Foreground="#E5E7EB"')) {
-    $homeXaml = $homeXaml.Replace(
-        'Style="{StaticResource SubtitleTextBlockStyle}"' + [Environment]::NewLine + '                Text="最近播放"',
-        'Style="{StaticResource SubtitleTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="18"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#E5E7EB"' + [Environment]::NewLine + '                Text="最近播放"'
-    )
-}
+$homeXaml = $homeXaml.Replace(
+    'Style="{StaticResource TitleMediumTextBlockStyle}"',
+    'Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="30"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"'
+)
+$homeXaml = $homeXaml.Replace(
+    'Style="{StaticResource SubtitleTextBlockStyle}"',
+    'Style="{StaticResource SubtitleTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="18"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#E5E7EB"'
+)
+$homeXaml = $homeXaml.Replace(
+    'Padding="{StaticResource ContentPagePadding}">',
+    'Padding="32,20,32,16">'
+)
 Set-Content -Path $homePath -Value $homeXaml -Encoding UTF8
 
 # Navigation shell: use a restrained surface and clear divider between pane and content.
