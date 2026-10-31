@@ -18,6 +18,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                 <TextBlock Text="文件夹播放列表" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <Button Grid.Column="1" Content="添加文件夹" Click="AddFolderPlaylist_Click" />
             </Grid>
+            <TextBlock x:Name="FolderPlaylistStatus" Opacity="0.75" TextWrapping="Wrap" />
             <ListView x:Name="FolderPlaylistList" MaxHeight="168" SelectionMode="None">
                 <ListView.ItemTemplate>
                     <DataTemplate>
@@ -65,36 +66,65 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
         _folderPlaylists.Clear();
         foreach (var item in _folderPlaylistService.State.Playlists)
             _folderPlaylists.Add(item);
+        FolderPlaylistStatus.Text = _folderPlaylists.Count == 0
+            ? "添加一个视频文件夹，之后可直接播放或刷新其中的视频。"
+            : $"已保存 {_folderPlaylists.Count} 个文件夹播放列表";
+    }
+
+    private void ShowFolderPlaylistError(Exception exception)
+    {
+        FolderPlaylistStatus.Text = $"操作失败：{exception.Message}。如果文件夹权限已失效，请移除后重新添加。";
     }
 
     private async void AddFolderPlaylist_Click(object sender, RoutedEventArgs e)
     {
-        await _folderPlaylistService.AddFolderFromPickerAsync();
-        RefreshFolderPlaylistItems();
+        try
+        {
+            var added = await _folderPlaylistService.AddFolderFromPickerAsync();
+            if (added is not null)
+                FolderPlaylistStatus.Text = $"已添加：{added.Name}（{added.Files.Count} 个视频）";
+            RefreshFolderPlaylistItems();
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
     }
 
     private async void FolderPlaylistPlay_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string id)
-            await _folderPlaylistService.PlayAsync(id);
+        try
+        {
+            if (sender is Button button && button.Tag is string id)
+            {
+                await _folderPlaylistService.PlayAsync(id);
+                FolderPlaylistStatus.Text = "已将文件夹中的视频交给播放队列。";
+            }
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
     }
 
     private async void FolderPlaylistRefresh_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string id)
+        try
         {
-            await _folderPlaylistService.RefreshAsync(id);
-            RefreshFolderPlaylistItems();
+            if (sender is Button button && button.Tag is string id)
+            {
+                await _folderPlaylistService.RefreshAsync(id);
+                RefreshFolderPlaylistItems();
+            }
         }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
     }
 
     private async void FolderPlaylistRemove_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string id)
+        try
         {
-            await _folderPlaylistService.RemoveAsync(id);
-            RefreshFolderPlaylistItems();
+            if (sender is Button button && button.Tag is string id)
+            {
+                await _folderPlaylistService.RemoveAsync(id);
+                RefreshFolderPlaylistItems();
+            }
         }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
     }
 '@
     $cs = $cs.Replace('    private void SelectDeselectAllKeyboardAccelerator_OnInvoked', $handlers + $nl + '    private void SelectDeselectAllKeyboardAccelerator_OnInvoked')
