@@ -25,14 +25,19 @@ $homeXaml = $homeXaml.Replace(
 )
 
 # Keep page headings legible and consistent with the charcoal player shell.
-$homeXaml = $homeXaml.Replace(
-    'Style="{StaticResource TitleMediumTextBlockStyle}"',
-    'Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="30"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"'
-)
-$homeXaml = $homeXaml.Replace(
-    'Style="{StaticResource SubtitleTextBlockStyle}"',
-    'Style="{StaticResource SubtitleTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="18"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#E5E7EB"'
-)
+# Add typography only when the corresponding attribute is not already present.
+if ($homeXaml -notmatch 'FontSize="30"') {
+    $homeXaml = $homeXaml.Replace(
+        'Style="{StaticResource TitleMediumTextBlockStyle}"',
+        'Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="30"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"'
+    )
+}
+if ($homeXaml -notmatch 'FontSize="18"') {
+    $homeXaml = $homeXaml.Replace(
+        'Style="{StaticResource SubtitleTextBlockStyle}"',
+        'Style="{StaticResource SubtitleTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="18"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#E5E7EB"'
+    )
+}
 $homeXaml = $homeXaml.Replace(
     'Padding="{StaticResource ContentPagePadding}">',
     'Padding="32,20,32,16">'
