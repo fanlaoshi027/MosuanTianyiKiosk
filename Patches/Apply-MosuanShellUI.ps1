@@ -44,6 +44,7 @@ $navStateResources = @'
             <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#FFFFFF" />
             <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF" />
             <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#F28C28" />
 '@
 if (!$navStyles.Contains('NavigationViewItemBackgroundSelected"')) {
     $navStyles = $navStyles.Replace(
