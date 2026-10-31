@@ -38,7 +38,6 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
-                                <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
                                 <Button Content="刷新" Tag="{Binding Id}" Click="FolderPlaylistRefresh_Click" />
                                 <Button Content="重新授权" Tag="{Binding Id}" Click="FolderPlaylistReauthorize_Click" />
                                 <Button Content="移除" Tag="{Binding Id}" Click="FolderPlaylistRemove_Click" />
