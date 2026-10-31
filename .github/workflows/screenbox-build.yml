@@ -40,15 +40,15 @@ jobs:
       - name: Apply Mosuan shell UI
         shell: pwsh
         run: .\Patches\Apply-MosuanShellUI.ps1
-      - name: Apply Mosuan control bar polish
-        shell: pwsh
-        run: .\Patches\Apply-MosuanControlBarPolish.ps1
       - name: Apply Mosuan home layout
         shell: pwsh
         run: .\Patches\Apply-MosuanHomeLayout.ps1
       - name: Apply Mosuan visual polish
         shell: pwsh
         run: .\Patches\Apply-MosuanVisualPolish.ps1
+      - name: Apply Mosuan control bar polish
+        shell: pwsh
+        run: .\Patches\Apply-MosuanControlBarPolish.ps1
       - name: Apply Mosuan video tools
         shell: pwsh
         run: .\Patches\Apply-MosuanVideoTools.ps1
