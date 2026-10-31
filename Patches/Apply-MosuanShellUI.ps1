@@ -36,6 +36,18 @@ $navStyles = $navStyles.Replace(
     '<StaticResource x:Key="NavigationViewDefaultPaneBackground" ResourceKey="AcrylicInAppFillColorBaseBrush" />',
     '<SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#151B23" />'
 )
+if (!$navStyles.Contains('NavigationViewItemBackgroundSelectedPointerOver')) {
+    $navStateBrushes = @'
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#202B37" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#293A49" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1B3041" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#243E52" />
+            <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#2C4659" />
+'@
+    $darkThemeAnchor = '<contract13NotPresent:StaticResource x:Key="NavigationViewExpandedPaneBackground" ResourceKey="SystemControlAcrylicWindowBrush" />'
+    if (!$navStyles.Contains($darkThemeAnchor)) { throw 'NavigationView dark theme resource anchor not found' }
+    $navStyles = $navStyles.Replace($darkThemeAnchor, $darkThemeAnchor + [Environment]::NewLine + $navStateBrushes)
+}
 Set-Content -Path $navStylePath -Value $navStyles -Encoding UTF8
 
 # Home landing page: preserve all existing bindings and navigation behavior.
