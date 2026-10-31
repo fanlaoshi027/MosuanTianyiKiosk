@@ -16,7 +16,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="文件夹播放列表" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="添加文件夹" Click="AddFolderPlaylist_Click" />
+                <Button Grid.Column="1" Content="添加文件夹 / SMB共享" Click="AddFolderPlaylist_Click" />
             </Grid>
             <TextBlock x:Name="FolderPlaylistStatus" Opacity="0.75" TextWrapping="Wrap" />
             <ListView x:Name="FolderPlaylistList" MaxHeight="168" SelectionMode="None">
@@ -29,7 +29,9 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding Files.Count}" Opacity="0.7" />
+                                <TextBlock Text="{Binding FileCount, Mode=OneWay}" Opacity="0.7" />
+                                <TextBlock Text="{Binding FolderPath}" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding UpdatedAtText}" Opacity="0.55" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
@@ -67,8 +69,8 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
         foreach (var item in _folderPlaylistService.State.Playlists)
             _folderPlaylists.Add(item);
         FolderPlaylistStatus.Text = _folderPlaylists.Count == 0
-            ? "添加一个视频文件夹，之后可直接播放或刷新其中的视频。"
-            : $"已保存 {_folderPlaylists.Count} 个文件夹播放列表";
+            ? "添加本地视频文件夹，也可以在系统选择窗口中进入网络位置并选择 SMB 共享。"
+            : $"已保存 {_folderPlaylists.Count} 个文件夹播放列表（本地或 SMB）";
     }
 
     private void ShowFolderPlaylistError(Exception exception)
