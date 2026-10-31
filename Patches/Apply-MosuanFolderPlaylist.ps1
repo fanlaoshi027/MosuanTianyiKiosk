@@ -90,7 +90,8 @@ public sealed class MosuanFolderPlaylistService
             string.Equals(x.FolderPath, folder.Path, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            existing.FolderToken = existing.Id;
+            if (string.IsNullOrWhiteSpace(existing.FolderToken))
+                existing.FolderToken = Guid.NewGuid().ToString("N");
             global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.AddOrReplace(existing.FolderToken, folder);
             await RefreshAsync(existing.Id);
             return existing;
@@ -122,11 +123,10 @@ public sealed class MosuanFolderPlaylistService
             playlist.UpdatedAtUtc = DateTime.UtcNow;
             await SaveAsync();
         }
-        catch (Exception)
+        catch
         {
-            // Keep the playlist entry so the user can re-authorize it later.
-            playlist.Files = new();
-            await SaveAsync();
+            // Preserve the last known file list and let the UI report the access error.
+            throw;
         }
     }
 
@@ -150,7 +150,8 @@ public sealed class MosuanFolderPlaylistService
 
         var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
         var files = await GetVideoFilesAsync(folder);
-        if (files.Count == 0) return;
+        if (files.Count == 0)
+            throw new InvalidOperationException("该文件夹中没有找到支持的视频文件，请先刷新列表或检查文件格式。");
 
         global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
     }
