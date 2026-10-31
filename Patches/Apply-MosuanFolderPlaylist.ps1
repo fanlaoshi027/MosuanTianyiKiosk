@@ -12,7 +12,10 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
+using Screenbox.Core.Messages;
 using Windows.Storage;
+using Windows.Storage.Pickers;
 
 namespace Screenbox.Models;
 
@@ -21,16 +24,22 @@ public sealed class MosuanFolderPlaylist
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     public string FolderPath { get; set; } = "";
+    public string FolderToken { get; set; } = "";
     public List<string> Files { get; set; } = new();
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class MosuanFolderPlaylistState
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public List<MosuanFolderPlaylist> Playlists { get; set; } = new();
 }
 
+/// <summary>
+/// Persistent folder playlists backed by Windows FutureAccessList permissions.
+/// Use StorageFolder APIs rather than Directory APIs so picked folders remain
+/// accessible inside the packaged app sandbox.
+/// </summary>
 public sealed class MosuanFolderPlaylistService
 {
     private const string StoreName = "mosuan-folder-playlists.json";
@@ -63,26 +72,38 @@ public sealed class MosuanFolderPlaylistService
             new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    public async Task<MosuanFolderPlaylist> AddFolderAsync(string folderPath, string? displayName = null)
+    public async Task<MosuanFolderPlaylist?> AddFolderFromPickerAsync()
     {
-        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
-            throw new DirectoryNotFoundException($"播放列表文件夹不存在：{folderPath}");
+        var picker = new FolderPicker();
+        picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+        picker.FileTypeFilter.Add("*");
+        StorageFolder? folder = await picker.PickSingleFolderAsync();
+        return folder is null ? null : await AddFolderAsync(folder);
+    }
+
+    public async Task<MosuanFolderPlaylist> AddFolderAsync(StorageFolder folder)
+    {
+        if (folder is null) throw new ArgumentNullException(nameof(folder));
 
         var existing = State.Playlists.FirstOrDefault(x =>
-            string.Equals(x.FolderPath, folderPath, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
+            string.Equals(x.FolderPath, folder.Path, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
         {
+            existing.FolderToken = existing.Id;
+            StorageApplicationPermissions.FutureAccessList.AddOrReplace(existing.FolderToken, folder);
             await RefreshAsync(existing.Id);
             return existing;
         }
 
         var playlist = new MosuanFolderPlaylist
         {
-            Name = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : displayName,
-            FolderPath = folderPath
+            Name = folder.DisplayName,
+            FolderPath = folder.Path,
+            FolderToken = Guid.NewGuid().ToString("N")
         };
-        playlist.Files = ScanFolder(folderPath);
-        State.Playlists.Add(playlist);
+        StorageApplicationPermissions.FutureAccessList.AddOrReplace(playlist.FolderToken, folder);
+        playlist.Files = await ScanFolderAsync(folder);
+        State.Playlists.Insert(0, playlist);
         await SaveAsync();
         return playlist;
     }
@@ -90,16 +111,47 @@ public sealed class MosuanFolderPlaylistService
     public async Task RefreshAsync(string playlistId)
     {
         var playlist = Find(playlistId);
-        if (playlist == null) return;
-        playlist.Files = ScanFolder(playlist.FolderPath);
-        playlist.UpdatedAtUtc = DateTime.UtcNow;
-        await SaveAsync();
+        if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken)) return;
+
+        try
+        {
+            var folder = await StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
+            playlist.FolderPath = folder.Path;
+            playlist.Files = await ScanFolderAsync(folder);
+            playlist.UpdatedAtUtc = DateTime.UtcNow;
+            await SaveAsync();
+        }
+        catch (Exception)
+        {
+            // Keep the playlist entry so the user can re-authorize it later.
+            playlist.Files = new();
+            await SaveAsync();
+        }
     }
 
     public async Task RemoveAsync(string playlistId)
     {
-        State.Playlists.RemoveAll(x => x.Id == playlistId);
+        var playlist = Find(playlistId);
+        if (playlist is null) return;
+        if (!string.IsNullOrWhiteSpace(playlist.FolderToken) &&
+            StorageApplicationPermissions.FutureAccessList.ContainsItem(playlist.FolderToken))
+        {
+            StorageApplicationPermissions.FutureAccessList.Remove(playlist.FolderToken);
+        }
+        State.Playlists.Remove(playlist);
         await SaveAsync();
+    }
+
+    public async Task PlayAsync(string playlistId)
+    {
+        var playlist = Find(playlistId);
+        if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken)) return;
+
+        var folder = await StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
+        var files = await GetVideoFilesAsync(folder);
+        if (files.Count == 0) return;
+
+        Messenger.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
     }
 
     public MosuanFolderPlaylist? Find(string playlistId) =>
@@ -108,17 +160,19 @@ public sealed class MosuanFolderPlaylistService
     public IReadOnlyList<string> GetFiles(string playlistId) =>
         Find(playlistId)?.Files ?? Array.Empty<string>();
 
-    private static List<string> ScanFolder(string folderPath)
+    private static async Task<List<string>> ScanFolderAsync(StorageFolder folder)
     {
-        try
-        {
-            return Directory.EnumerateFiles(folderPath, "*", SearchOption.TopDirectoryOnly)
-                .Where(IsVideoFile)
-                .OrderBy(x => Path.GetFileName(x), StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-        catch (UnauthorizedAccessException) { return new(); }
-        catch (IOException) { return new(); }
+        var files = await GetVideoFilesAsync(folder);
+        return files.Select(x => x.Path).ToList();
+    }
+
+    private static async Task<IReadOnlyList<StorageFile>> GetVideoFilesAsync(StorageFolder folder)
+    {
+        var files = await folder.GetFilesAsync();
+        return files
+            .Where(x => IsVideoFile(x.Name))
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     public static bool IsVideoFile(string path) =>
@@ -126,4 +180,4 @@ public sealed class MosuanFolderPlaylistService
 }
 '@ | Set-Content -Path $target -Encoding UTF8
 
-Write-Host 'Mosuan folder playlist service generated.'
+Write-Host 'Mosuan folder playlist service generated with FutureAccessList permissions.'
