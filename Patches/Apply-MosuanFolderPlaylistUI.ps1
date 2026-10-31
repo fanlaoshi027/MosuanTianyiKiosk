@@ -49,7 +49,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
 
 $cs = Get-Content -Raw $csPath
 if ($cs -notmatch 'MosuanFolderPlaylistService') {
-    $cs = $cs.Replace('using System.Threading.Tasks;', 'using System.Threading.Tasks;' + $nl + 'using System.Collections.ObjectModel;' + $nl + 'using Mosuan.Models;' + $nl + 'using Windows.UI.Xaml;')
+    $cs = $cs.Replace('using System.Threading.Tasks;', 'using System.Threading.Tasks;' + $nl + 'using System.Collections.ObjectModel;' + $nl + 'using Screenbox.Models;' + $nl + 'using Windows.UI.Xaml;')
     $cs = $cs.Replace('    private readonly SelectDeselectAllCommand _selectionCommand;', '    private readonly SelectDeselectAllCommand _selectionCommand;' + $nl + '    private readonly MosuanFolderPlaylistService _folderPlaylistService = new();' + $nl + '    private readonly ObservableCollection<MosuanFolderPlaylist> _folderPlaylists = new();')
     $cs = $cs.Replace('        _selectionCommand = new SelectDeselectAllCommand();', '        _selectionCommand = new SelectDeselectAllCommand();' + $nl + '        FolderPlaylistList.ItemsSource = _folderPlaylists;' + $nl + '        Loaded += PlaylistsPage_Loaded;')
     $handlers = @'
