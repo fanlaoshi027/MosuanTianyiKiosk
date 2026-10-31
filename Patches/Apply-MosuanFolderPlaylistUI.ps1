@@ -38,6 +38,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
+                                <Button Content="重命名" Tag="{Binding Id}" Click="FolderPlaylistRename_Click" />
                                 <Button Content="刷新" Tag="{Binding Id}" Click="FolderPlaylistRefresh_Click" />
                                 <Button Content="重新授权" Tag="{Binding Id}" Click="FolderPlaylistReauthorize_Click" />
                                 <Button Content="移除" Tag="{Binding Id}" Click="FolderPlaylistRemove_Click" />
@@ -56,7 +57,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
 
 $cs = Get-Content -Raw $csPath
 if ($cs -notmatch 'MosuanFolderPlaylistService') {
-    $cs = $cs.Replace('using System.Threading.Tasks;', 'using System.Threading.Tasks;' + $nl + 'using System.Collections.ObjectModel;' + $nl + 'using Screenbox.Models;' + $nl + 'using Windows.UI.Xaml;')
+    $cs = $cs.Replace('using System.Threading.Tasks;', 'using System.Threading.Tasks;' + $nl + 'using System.Collections.ObjectModel;' + $nl + 'using Screenbox.Models;' + $nl + 'using Windows.UI.Xaml;' + $nl + 'using Windows.UI.Xaml.Controls;')
     $cs = $cs.Replace('    private readonly SelectDeselectAllCommand _selectionCommand;', '    private readonly SelectDeselectAllCommand _selectionCommand;' + $nl + '    private readonly MosuanFolderPlaylistService _folderPlaylistService = new();' + $nl + '    private readonly ObservableCollection<MosuanFolderPlaylist> _folderPlaylists = new();')
     $cs = $cs.Replace('        _selectionCommand = new SelectDeselectAllCommand();', '        _selectionCommand = new SelectDeselectAllCommand();' + $nl + '        FolderPlaylistList.ItemsSource = _folderPlaylists;' + $nl + '        Loaded += PlaylistsPage_Loaded;')
     $handlers = @'
@@ -131,6 +132,40 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             {
                 await _folderPlaylistService.PlayAsync(id);
                 FolderPlaylistStatus.Text = "已将文件夹中的视频交给播放队列。";
+            }
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+    private async void FolderPlaylistRename_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string id) return;
+        var playlist = _folderPlaylistService.Find(id);
+        if (playlist is null) return;
+
+        var nameInput = new TextBox
+        {
+            Text = playlist.Name,
+            PlaceholderText = "输入播放列表名称",
+            MinWidth = 280
+        };
+        var dialog = new ContentDialog
+        {
+            Title = "重命名播放列表",
+            Content = nameInput,
+            PrimaryButtonText = "保存",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        try
+        {
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+            if (await _folderPlaylistService.RenameAsync(id, nameInput.Text))
+            {
+                RefreshFolderPlaylistItems();
+                FolderPlaylistStatus.Text = "播放列表名称已保存。";
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
