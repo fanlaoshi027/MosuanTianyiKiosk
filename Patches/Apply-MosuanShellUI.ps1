@@ -17,12 +17,7 @@ if (!$main.Contains('<Grid Background="#101318">')) {
 }
 $navAnchor = '            x:Name="NavView"'
 if (!$main.Contains($navAnchor)) { throw 'MainPage NavView anchor not found' }
-$navStart = $main.IndexOf($navAnchor)
-$navTagEnd = $main.IndexOf('>', $navStart)
-$navTag = $main.Substring($navStart, $navTagEnd - $navStart)
-if (!$navTag.Contains('Background=')) {
-    $main = $main.Replace($navAnchor, $navAnchor + [Environment]::NewLine + '            Background="#101318"')
-}
+# NavigationViewEx has no PaneBackground property; style its supported child/content surfaces instead.
 if (!$main.Contains('OpenPaneLength="232"')) {
     $navAnchor = '            x:Name="NavView"'
     $main = $main.Replace($navAnchor, $navAnchor + [Environment]::NewLine + '            OpenPaneLength="232"' + [Environment]::NewLine + '            CompactPaneLength="64"')
