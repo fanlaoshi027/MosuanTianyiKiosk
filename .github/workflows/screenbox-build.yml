@@ -52,6 +52,9 @@ jobs:
       - name: Apply Mosuan folder playlist service
         shell: pwsh
         run: .\Patches\Apply-MosuanFolderPlaylist.ps1
+      - name: Apply Mosuan folder playlist page
+        shell: pwsh
+        run: .\Patches\Apply-MosuanFolderPlaylistUI.ps1
       - name: Apply Mosuan visual polish
         shell: pwsh
         run: .\Patches\Apply-MosuanVisualPolish.ps1
