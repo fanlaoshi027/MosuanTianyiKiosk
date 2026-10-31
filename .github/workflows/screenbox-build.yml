@@ -43,6 +43,9 @@ jobs:
       - name: Apply Mosuan home layout
         shell: pwsh
         run: .\Patches\Apply-MosuanHomeLayout.ps1
+      - name: Apply Mosuan queue layout
+        shell: pwsh
+        run: .\Patches\Apply-MosuanQueueLayout.ps1
       - name: Apply Mosuan playlist layout
         shell: pwsh
         run: .\Patches\Apply-MosuanPlaylistLayout.ps1
