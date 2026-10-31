@@ -44,16 +44,8 @@ $homeXaml = $homeXaml.Replace(
 )
 Set-Content -Path $homePath -Value $homeXaml -Encoding UTF8
 
-# Navigation shell: use a restrained surface and clear divider between pane and content.
-$main = Get-Content -Raw -Encoding UTF8 $mainPath
-if (!$main.Contains('PaneBackground="#151B23"')) {
-    $anchor = '            x:Name="NavView"'
-    if (!$main.Contains($anchor)) { throw 'NavigationView anchor not found' }
-    $main = $main.Replace(
-        $anchor,
-        $anchor + [Environment]::NewLine + '            PaneBackground="#151B23"'
-    )
-}
-Set-Content -Path $mainPath -Value $main -Encoding UTF8
+# Navigation shell surface is styled by Apply-MosuanShellUI.ps1.
+# NavigationViewEx does not expose PaneBackground, so do not add unsupported XAML members.
+
 
 Write-Host 'Mosuan home layout v1 applied: Chinese home hierarchy and restrained navigation surface.'
