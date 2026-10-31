@@ -16,6 +16,12 @@ $xaml = $xaml.Replace('Text="{x:Bind strings:Resources.Playlists}"', 'Text="播�
 $xaml = $xaml.Replace('Text="{x:Bind strings:Resources.NewPlaylist}"', 'Text="新建列表"')
 $xaml = $xaml.Replace('Text="{x:Bind strings:Resources.Multiselect}"', 'Text="多选"')
 
+# Give the page title a clear hierarchy while retaining the existing TextBlock style.
+$xaml = $xaml.Replace(
+    '                Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                Text="播放列表"',
+    '                Style="{StaticResource TitleMediumTextBlockStyle}"' + [Environment]::NewLine + '                FontSize="28"' + [Environment]::NewLine + '                FontWeight="SemiBold"' + [Environment]::NewLine + '                Foreground="#F3F4F6"' + [Environment]::NewLine + '                Text="播放列表"'
+)
+
 # A more spacious title row and compact secondary action row.
 $xaml = $xaml.Replace(
     'Padding="{StaticResource ContentPagePadding}">',
