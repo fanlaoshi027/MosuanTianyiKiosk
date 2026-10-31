@@ -197,6 +197,17 @@ public sealed class MosuanFolderPlaylistService
     public MosuanFolderPlaylist? Find(string playlistId) =>
         State.Playlists.FirstOrDefault(x => x.Id == playlistId);
 
+    public async Task<bool> RenameAsync(string playlistId, string name)
+    {
+        var playlist = Find(playlistId);
+        var normalized = name?.Trim();
+        if (playlist is null || string.IsNullOrWhiteSpace(normalized)) return false;
+
+        playlist.Name = normalized;
+        await SaveAsync();
+        return true;
+    }
+
     public IReadOnlyList<string> GetFiles(string playlistId)
     {
         var playlist = Find(playlistId);
