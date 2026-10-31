@@ -38,7 +38,9 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
+                                <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
                                 <Button Content="刷新" Tag="{Binding Id}" Click="FolderPlaylistRefresh_Click" />
+                                <Button Content="重新授权" Tag="{Binding Id}" Click="FolderPlaylistReauthorize_Click" />
                                 <Button Content="移除" Tag="{Binding Id}" Click="FolderPlaylistRemove_Click" />
                             </StackPanel>
                         </Grid>
@@ -126,6 +128,23 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             {
                 await _folderPlaylistService.RefreshAsync(id);
                 RefreshFolderPlaylistItems();
+            }
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+    private async void FolderPlaylistReauthorize_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is Button button && button.Tag is string id)
+            {
+                var restored = await _folderPlaylistService.ReauthorizeAsync(id);
+                if (restored)
+                {
+                    RefreshFolderPlaylistItems();
+                    FolderPlaylistStatus.Text = "文件夹访问权限已更新，播放列表已恢复。";
+                }
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
