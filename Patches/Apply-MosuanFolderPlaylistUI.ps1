@@ -159,6 +159,15 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             }
 
             var visibleFiles = files.ToList();
+            var sortBox = new ComboBox
+            {
+                MinWidth = 140,
+                SelectedIndex = 0,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            sortBox.Items.Add("按目录顺序");
+            sortBox.Items.Add("按名称排序");
+            sortBox.Items.Add("名称倒序");
             var search = new TextBox
             {
                 PlaceholderText = "输入视频名称筛选…",
@@ -174,7 +183,12 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             void ApplyFilter()
             {
                 var keyword = search.Text?.Trim() ?? "";
-                visibleFiles = files.Where(path =>
+                IEnumerable<string> ordered = files;
+                if (sortBox.SelectedIndex == 1)
+                    ordered = files.OrderBy(path => System.IO.Path.GetFileName(path), StringComparer.OrdinalIgnoreCase);
+                else if (sortBox.SelectedIndex == 2)
+                    ordered = files.OrderByDescending(path => System.IO.Path.GetFileName(path), StringComparer.OrdinalIgnoreCase);
+                visibleFiles = ordered.Where(path =>
                     System.IO.Path.GetFileName(path).Contains(keyword, StringComparison.OrdinalIgnoreCase))
                     .ToList();
                 list.ItemsSource = visibleFiles.Select(path =>
@@ -182,10 +196,12 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
                 list.SelectedIndex = -1;
             }
             search.TextChanged += (s, args) => ApplyFilter();
+            sortBox.SelectionChanged += (s, args) => ApplyFilter();
             ApplyFilter();
 
             var content = new StackPanel { Spacing = 6 };
             content.Children.Add(search);
+            content.Children.Add(sortBox);
             content.Children.Add(new TextBlock
             {
                 Text = $"共 {files.Count} 个视频 · 可输入名称筛选",
