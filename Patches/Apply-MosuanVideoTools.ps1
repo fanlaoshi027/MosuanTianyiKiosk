@@ -75,10 +75,13 @@ if (!$xaml.Contains('x:Name="MosuanCropOverlay"')) {
                 Visibility="Collapsed" />
         </Canvas>
 '@
-    $anchor = '</controls:PlayerElement>'
-    $insertAt = $xaml.IndexOf($anchor, [StringComparison]::Ordinal)
-    if ($insertAt -lt 0) { throw 'PlayerElement closing tag not found for crop overlay' }
-    $insertAt += $anchor.Length
+    # PlayerElement is self-closing in the upstream XAML. Insert after its element,
+    # not after a nonexistent closing tag.
+    $videoStart = $xaml.IndexOf('x:Name="VideoView"', [StringComparison]::Ordinal)
+    if ($videoStart -lt 0) { throw 'PlayerElement VideoView anchor not found for crop overlay' }
+    $insertAt = $xaml.IndexOf('/>', $videoStart, [StringComparison]::Ordinal)
+    if ($insertAt -lt 0) { throw 'PlayerElement self-closing terminator not found for crop overlay' }
+    $insertAt += 2
     $xaml = $xaml.Insert($insertAt, [Environment]::NewLine + $overlay)
 }
 Set-Content -Path $xamlPath -Value $xaml -Encoding UTF8
