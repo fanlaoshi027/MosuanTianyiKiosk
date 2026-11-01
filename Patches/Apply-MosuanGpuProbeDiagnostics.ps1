@@ -62,8 +62,8 @@ if (!$code.Contains('public static int ActiveHookCount')) {
     if (!$code.Contains($anchor)) { throw 'GPU probe public counter anchor not found.' }
     $code = $code.Replace($anchor, $anchor + $nl +
         '    public static int ActiveHookCount => Volatile.Read(ref s_activeHookCount);' + $nl +
-        '    public static string LastInstallError => Volatile.Read(ref s_lastInstallError) ?? string.Empty;
-    public static string HookStatus => ActiveHookCount > 0 ? "已安装" : "未安装";' + $nl +
+        '    public static string LastInstallError => Volatile.Read(ref s_lastInstallError) ?? string.Empty;' + $nl +
+        '    public static string HookStatus => ActiveHookCount > 0 ? "已安装" : "未安装";' + $nl +
         '    public static string LastSwapChainAddress => $"0x{Interlocked.Read(ref s_lastSwapChain):X}";')
 }
 
