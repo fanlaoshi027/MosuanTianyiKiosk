@@ -264,9 +264,14 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
         MosuanCropOverlay.IsHitTestVisible = false;
         if (width > 0 && height > 0 && cropWidth >= 24 && cropHeight >= 24)
         {
-            _mosuanCropViewportRect = new Rect(left / width, top / height, cropWidth / width, cropHeight / height);
+            Rect appliedCrop = new(left / width, top / height, cropWidth / width, cropHeight / height);
+            WeakReferenceMessenger.Default.Send(new ChangeNormalizedCropMessage(appliedCrop));
+
+            // The newly cropped source now fills the video viewport. On the next
+            // edit, start from that current image instead of reusing stale coordinates
+            // from the pre-crop frame.
+            _mosuanCropViewportRect = new Rect(0, 0, 1, 1);
             _mosuanCropHasSelection = true;
-            WeakReferenceMessenger.Default.Send(new ChangeNormalizedCropMessage(_mosuanCropViewportRect));
         }
 
         ViewModel.ControlsHidden = false;
@@ -275,6 +280,8 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
 
     private void MosuanCropOverlay_OnPointerCanceled(object sender, PointerRoutedEventArgs e)
     {
+        if (_mosuanCropPointerCaptured)
+            MosuanCropOverlay.ReleasePointerCapture(e.Pointer);
         _mosuanCropPointerCaptured = false;
         MosuanCropOverlay.Opacity = 0;
         MosuanCropOverlay.IsHitTestVisible = false;
@@ -344,6 +351,7 @@ if (!$code.Contains('MosuanAspectRatio_OnClick')) {
     private void MosuanResetCrop_OnClick(object sender, RoutedEventArgs e)
     {
         _mosuanCropHasSelection = false;
+        _mosuanCropViewportRect = new Rect(0, 0, 1, 1);
         MosuanCropOverlay.Opacity = 0;
         MosuanCropOverlay.IsHitTestVisible = false;
         MosuanCropSelection.Visibility = Visibility.Collapsed;
