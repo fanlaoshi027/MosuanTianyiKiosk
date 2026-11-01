@@ -25,7 +25,8 @@ if (!$code.Contains('public static int ActiveHookCount')) {
     if (!$code.Contains($anchor)) { throw 'GPU probe public counter anchor not found.' }
     $code = $code.Replace($anchor, $anchor + $nl +
         '    public static int ActiveHookCount => Volatile.Read(ref s_activeHookCount);' + $nl +
-        '    public static string LastInstallError => Volatile.Read(ref s_lastInstallError) ?? string.Empty;' + $nl +
+        '    public static string LastInstallError => Volatile.Read(ref s_lastInstallError) ?? string.Empty;
+    public static string HookStatus => ActiveHookCount > 0 ? "已安装" : "未安装";' + $nl +
         '    public static string LastSwapChainAddress => $"0x{Interlocked.Read(ref s_lastSwapChain):X}";')
 }
 
@@ -57,7 +58,7 @@ Set-Content -Path $probePath -Value $code -Encoding UTF8
 $playerCode = Get-Content -Raw -Encoding UTF8 $playerCodePath
 $old = '            Content = $"Present：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}",'
 $new = @'
-            Content = $"拦截状态：{(Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount > 0 ? "已安装" : "未安装")}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}",
+            Content = $"拦截状态：{Screenbox.Controls.SwapChainPresentProbe.HookStatus}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}",
 '@
 if ($playerCode.Contains($old)) {
     $playerCode = $playerCode.Replace($old, $new.TrimEnd())
