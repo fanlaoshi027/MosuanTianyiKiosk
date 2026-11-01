@@ -59,7 +59,7 @@ if (!$xaml.Contains('x:Name="MosuanCropOverlay"')) {
             Grid.RowSpan="3"
             Grid.Column="0"
             Background="#01000000"
-            Visibility="Collapsed"
+            Visibility="Hidden"
             PointerPressed="MosuanCropOverlay_OnPointerPressed"
             PointerMoved="MosuanCropOverlay_OnPointerMoved"
             PointerReleased="MosuanCropOverlay_OnPointerReleased"
@@ -257,7 +257,7 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
         double cropWidth = MosuanCropSelection.Width;
         double cropHeight = MosuanCropSelection.Height;
 
-        MosuanCropOverlay.Visibility = Visibility.Collapsed;
+        MosuanCropOverlay.Visibility = Visibility.Hidden;
         if (width > 0 && height > 0 && cropWidth >= 24 && cropHeight >= 24)
         {
             _mosuanCropViewportRect = new Rect(left / width, top / height, cropWidth / width, cropHeight / height);
