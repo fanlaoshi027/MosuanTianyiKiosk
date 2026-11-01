@@ -199,6 +199,24 @@ public sealed class MosuanFolderPlaylistService
     public MosuanFolderPlaylist? Find(string playlistId) =>
         State.Playlists.FirstOrDefault(x => x.Id == playlistId);
 
+    public async Task PlayFileAsync(string playlistId, string filePath)
+    {
+        var playlist = Find(playlistId);
+        if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken))
+            throw new InvalidOperationException("找不到文件夹播放列表或访问权限已失效。");
+
+        var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions
+            .FutureAccessList.GetFolderAsync(playlist.FolderToken);
+        var files = await GetVideoFilesAsync(folder);
+        var selected = files.FirstOrDefault(x =>
+            string.Equals(x.Path, filePath, StringComparison.OrdinalIgnoreCase));
+        if (selected is null)
+            throw new FileNotFoundException("视频文件不存在或当前不可访问，请刷新播放列表。", filePath);
+
+        global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+            new PlayFilesMessage(new IStorageItem[] { selected }));
+    }
+
     public async Task<bool> OpenFolderAsync(string playlistId)
     {
         var playlist = Find(playlistId);
