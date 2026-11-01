@@ -62,6 +62,9 @@ if ($xaml -notmatch 'FolderPlaylistList') {
 }
 
 $cs = Get-Content -Raw $csPath
+if ($cs -notmatch '(?m)^using Microsoft\.Extensions\.DependencyInjection;') {
+    $cs = $cs.Replace('using System;', 'using System;' + $nl + 'using Microsoft.Extensions.DependencyInjection;')
+}
 if ($cs -notmatch '(?m)^using System\.Linq;') {
     $cs = $cs.Replace('using System;', 'using System;' + $nl + 'using System.Linq;')
 }
@@ -70,7 +73,7 @@ if ($cs -notmatch '(?m)^using System\.Collections\.Generic;') {
 }
 if ($cs -notmatch 'MosuanFolderPlaylistService') {
     $cs = $cs.Replace('using System.Threading.Tasks;', 'using System.Threading.Tasks;' + $nl + 'using System.Linq;' + $nl + 'using System.Collections.ObjectModel;' + $nl + 'using Screenbox.Models;' + $nl + 'using Windows.UI.Xaml;' + $nl + 'using Windows.UI.Xaml.Controls;')
-    $cs = $cs.Replace('    private readonly SelectDeselectAllCommand _selectionCommand;', '    private readonly SelectDeselectAllCommand _selectionCommand;' + $nl + '    private readonly MosuanFolderPlaylistService _folderPlaylistService = new();' + $nl + '    private readonly ObservableCollection<MosuanFolderPlaylist> _folderPlaylists = new();')
+    $cs = $cs.Replace('    private readonly SelectDeselectAllCommand _selectionCommand;', '    private readonly SelectDeselectAllCommand _selectionCommand;' + $nl + '    private readonly MosuanFolderPlaylistService _folderPlaylistService = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetRequiredService<MosuanFolderPlaylistService>();' + $nl + '    private readonly ObservableCollection<MosuanFolderPlaylist> _folderPlaylists = new();')
     $cs = $cs.Replace('        _selectionCommand = new SelectDeselectAllCommand();', '        _selectionCommand = new SelectDeselectAllCommand();' + $nl + '        FolderPlaylistList.ItemsSource = _folderPlaylists;' + $nl + '        Loaded += PlaylistsPage_Loaded;')
     $handlers = @'
 
