@@ -35,6 +35,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                                 <TextBlock Text="{Binding FileCount, Mode=OneWay}" Opacity="0.7" />
                                 <TextBlock Text="{Binding FolderPath}" Opacity="0.55" TextTrimming="CharacterEllipsis" />
                                 <TextBlock Text="{Binding UpdatedAtText}" Opacity="0.55" />
+                                <TextBlock Text="{Binding ScanWarningText}" Opacity="0.65" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
