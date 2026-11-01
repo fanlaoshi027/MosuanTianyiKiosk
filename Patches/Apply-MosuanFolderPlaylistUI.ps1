@@ -38,7 +38,8 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                                 <TextBlock Text="{Binding ScanWarningText}" Opacity="0.65" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
+                                <Button Content="播放全部" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
+                                <Button Content="视频列表" Tag="{Binding Id}" Click="FolderPlaylistFiles_Click" />
                                 <Button Content="打开目录" Tag="{Binding Id}" Click="FolderPlaylistOpenFolder_Click" />
                                 <Button Content="重命名" Tag="{Binding Id}" Click="FolderPlaylistRename_Click" />
                                 <Button Content="上移" Tag="{Binding Id}" Click="FolderPlaylistMoveUp_Click" />
@@ -136,6 +137,58 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             {
                 await _folderPlaylistService.PlayAsync(id);
                 FolderPlaylistStatus.Text = "已将文件夹中的视频交给播放队列。";
+            }
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+
+    private async void FolderPlaylistFiles_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string id) return;
+        var playlist = _folderPlaylistService.Find(id);
+        if (playlist is null) return;
+
+        try
+        {
+            var files = _folderPlaylistService.GetFiles(id);
+            if (files.Count == 0)
+            {
+                FolderPlaylistStatus.Text = "当前播放列表没有视频，请先刷新。";
+                return;
+            }
+
+            var list = new ListView
+            {
+                ItemsSource = files.Select(path => System.IO.Path.GetFileName(path)).ToList(),
+                SelectionMode = ListViewSelectionMode.Single,
+                MaxHeight = 420,
+                MinWidth = 360
+            };
+            var dialog = new ContentDialog
+            {
+                Title = $"{playlist.Name} · {files.Count} 个视频",
+                Content = list,
+                PrimaryButtonText = "播放选中视频",
+                SecondaryButtonText = "播放全部",
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                if (list.SelectedIndex < 0)
+                {
+                    FolderPlaylistStatus.Text = "请先选择一个视频。";
+                    return;
+                }
+                await _folderPlaylistService.PlayFileAsync(id, files[list.SelectedIndex]);
+                FolderPlaylistStatus.Text = "已开始播放选中的视频。";
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await _folderPlaylistService.PlayAsync(id);
+                FolderPlaylistStatus.Text = "已将全部视频加入播放队列。";
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
