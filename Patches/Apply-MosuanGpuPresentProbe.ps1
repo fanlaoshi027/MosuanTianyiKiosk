@@ -39,7 +39,7 @@ namespace Screenbox.Controls;
 /// The callback currently forwards Present unchanged and only counts calls.
 /// It deliberately performs no GPU work until runtime interception is verified.
 /// </summary>
-internal sealed unsafe class SwapChainPresentProbe : IDisposable
+public sealed unsafe class SwapChainPresentProbe : IDisposable
 {
     private const int PresentVtableIndex = 8;
     private const int Present1VtableIndex = 22;
@@ -49,6 +49,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
     private static IntPtr s_originalPresent;
     private static IntPtr s_originalPresent1;
     private static long s_presentCount;
+    private static long s_present1Count;
 
     private readonly IntPtr _swapChain;
     private readonly IntPtr _originalVtable;
@@ -56,6 +57,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
     private bool _disposed;
 
     public static long PresentCount => Interlocked.Read(ref s_presentCount);
+    public static long Present1Count => Interlocked.Read(ref s_present1Count);
 
     private SwapChainPresentProbe(IntPtr swapChain, IntPtr originalVtable, IntPtr hookedVtable)
     {
@@ -132,7 +134,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static int Present1(IntPtr self, uint syncInterval, uint flags, IntPtr presentParameters)
     {
-        Interlocked.Increment(ref s_presentCount);
+        Interlocked.Increment(ref s_present1Count);
         IntPtr original = s_originalPresent1;
         if (original == IntPtr.Zero)
             return unchecked((int)0x80004005); // E_FAIL
@@ -146,7 +148,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             return;
 
         _disposed = true;
-        Trace.WriteLine($"Mosuan DXGI Present probe observed {PresentCount} Present/Present1 calls.");
+        Trace.WriteLine($"Mosuan DXGI probe observed Present={PresentCount}, Present1={Present1Count} calls.");
 
         try
         {
@@ -183,4 +185,41 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
 }
 '@ | Set-Content -Path $probePath -Encoding UTF8
 
-Write-Host 'Installed fail-open DXGI Present probe.'
+# Add an on-demand UI diagnostic so runtime hook activity can be verified without
+# requiring access to the UWP debugger output.
+$playerPagePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Pages\PlayerPage.xaml'
+$playerCodePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Pages\PlayerPage.xaml.cs'
+if (!(Test-Path $playerPagePath) -or !(Test-Path $playerCodePath)) {
+    throw 'PlayerPage files not found for GPU probe diagnostics.'
+}
+$playerXaml = Get-Content -Raw -Encoding UTF8 $playerPagePath
+if (!$playerXaml.Contains('MosuanGpuProbeStatus_OnClick')) {
+    $flyoutAnchor = '<MenuFlyoutItem Text="重置裁切" Click="MosuanResetCrop_OnClick" />'
+    if (!$playerXaml.Contains($flyoutAnchor)) { throw 'Video tools flyout anchor not found.' }
+    $playerXaml = $playerXaml.Replace($flyoutAnchor, $flyoutAnchor + [Environment]::NewLine +
+        '                    <MenuFlyoutSeparator />' + [Environment]::NewLine +
+        '                    <MenuFlyoutItem Text="GPU 输出检测" Click="MosuanGpuProbeStatus_OnClick" />')
+    Set-Content -Path $playerPagePath -Value $playerXaml -Encoding UTF8
+}
+$playerCode = Get-Content -Raw -Encoding UTF8 $playerCodePath
+if (!$playerCode.Contains('MosuanGpuProbeStatus_OnClick')) {
+    $handler = @'
+
+    private async void MosuanGpuProbeStatus_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "GPU 输出检测",
+            Content = $"Present：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}",
+            CloseButtonText = "关闭"
+        };
+        await dialog.ShowAsync();
+    }
+'@
+    $lastBrace = $playerCode.LastIndexOf('}')
+    if ($lastBrace -lt 0) { throw 'PlayerPage class closing brace not found for GPU diagnostics.' }
+    $playerCode = $playerCode.Insert($lastBrace, $handler + [Environment]::NewLine)
+    Set-Content -Path $playerCodePath -Value $playerCode -Encoding UTF8
+}
+
+Write-Host 'Installed fail-open DXGI Present probe and runtime diagnostics.'
