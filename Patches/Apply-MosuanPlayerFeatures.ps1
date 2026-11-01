@@ -4,8 +4,9 @@ $nl = [Environment]::NewLine
 $coreRoot = Join-Path $PSScriptRoot '..\Screenbox.Core'
 $messagePath = Join-Path $coreRoot 'Messages\ChangeNormalizedCropMessage.cs'
 $viewModelPath = Join-Path $coreRoot 'ViewModels\PlayerElementViewModel.cs'
+$vlcPlayerPath = Join-Path $coreRoot 'Playback\VlcMediaPlayer.cs'
 
-foreach ($path in @($messagePath, $viewModelPath)) {
+foreach ($path in @($viewModelPath, $vlcPlayerPath)) {
     if (!(Test-Path $path)) { throw "Required crop pipeline file not found: $path" }
 }
 
@@ -26,7 +27,7 @@ public sealed class ChangeNormalizedCropMessage : ValueChangedMessage<Rect>
 '@ | Set-Content -Path $messagePath -Encoding UTF8
 }
 
-# Extend the existing player view-model crop pipeline without changing the VLC renderer.
+# Extend the existing player view-model crop pipeline.
 $code = Get-Content -Raw -Encoding UTF8 $viewModelPath
 if (!$code.Contains('IRecipient<ChangeNormalizedCropMessage>')) {
     $anchor = 'IRecipient<SettingsChangedMessage>'
@@ -47,7 +48,11 @@ if (!$code.Contains('public void Receive(ChangeNormalizedCropMessage message)'))
         if (VlcMediaPlayer is null) return;
 
         Rect rect = message.Value;
-        if (rect.X < 0 || rect.Y < 0 || rect.Width <= 0 || rect.Height <= 0
+        if (double.IsNaN(rect.X) || double.IsNaN(rect.Y)
+            || double.IsNaN(rect.Width) || double.IsNaN(rect.Height)
+            || double.IsInfinity(rect.X) || double.IsInfinity(rect.Y)
+            || double.IsInfinity(rect.Width) || double.IsInfinity(rect.Height)
+            || rect.X < 0 || rect.Y < 0 || rect.Width <= 0 || rect.Height <= 0
             || rect.X + rect.Width > 1 || rect.Y + rect.Height > 1)
         {
             return;
@@ -61,4 +66,29 @@ if (!$code.Contains('public void Receive(ChangeNormalizedCropMessage message)'))
 }
 Set-Content -Path $viewModelPath -Value $code -Encoding UTF8
 
-Write-Host 'Mosuan crop pipeline v2 applied: normalized source-rectangle messages are supported.'
+# The upstream normalized-rectangle setter previously applied only width:height,
+# silently discarding X/Y. Use LibVLC's crop-window geometry so free crop can move.
+$vlcCode = Get-Content -Raw -Encoding UTF8 $vlcPlayerPath
+$oldCrop = @'
+                // Use crop ratio to avoid conflict with subtitle rendering
+                double newWidth = value.Width * NaturalVideoWidth;
+                double newHeight = value.Height * NaturalVideoHeight;
+                VlcPlayer.CropGeometry = $"{newWidth:F0}:{newHeight:F0}";
+'@
+$newCrop = @'
+                // Apply the complete normalized crop window (width x height + left + top).
+                double newWidth = value.Width * NaturalVideoWidth;
+                double newHeight = value.Height * NaturalVideoHeight;
+                double leftOffset = value.X * NaturalVideoWidth;
+                double topOffset = value.Y * NaturalVideoHeight;
+                VlcPlayer.CropGeometry = $"{newWidth:F0}x{newHeight:F0}+{leftOffset:F0}+{topOffset:F0}";
+'@
+if ($vlcCode.Contains($oldCrop)) {
+    $vlcCode = $vlcCode.Replace($oldCrop, $newCrop)
+}
+elseif (!$vlcCode.Contains('value.X * NaturalVideoWidth')) {
+    throw 'VlcMediaPlayer normalized crop geometry anchor not found'
+}
+Set-Content -Path $vlcPlayerPath -Value $vlcCode -Encoding UTF8
+
+Write-Host 'Mosuan crop pipeline v3 applied: normalized crop messages now preserve crop position and size.'
