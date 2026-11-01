@@ -29,6 +29,8 @@ public sealed class MosuanFolderPlaylist
     public List<string> Files { get; set; } = new();
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public int FileCount => Files?.Count ?? 0;
+    public int ScanWarningCount { get; set; }
+    public string ScanWarningText => ScanWarningCount > 0 ? $"有 {ScanWarningCount} 个子文件夹暂时无法读取" : "扫描完整";
     public string UpdatedAtText => UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }
 
@@ -116,7 +118,7 @@ public sealed class MosuanFolderPlaylistService
             FolderToken = Guid.NewGuid().ToString("N")
         };
         global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.AddOrReplace(playlist.FolderToken, folder);
-        playlist.Files = await ScanFolderAsync(folder);
+        playlist.Files = await ScanFolderAsync(folder, count => playlist.ScanWarningCount = count);
         State.Playlists.Insert(0, playlist);
         await SaveAsync();
         return playlist;
@@ -142,7 +144,7 @@ public sealed class MosuanFolderPlaylistService
             .AddOrReplace(playlist.FolderToken, folder);
         playlist.Name = folder.DisplayName;
         playlist.FolderPath = folder.Path;
-        playlist.Files = await ScanFolderAsync(folder);
+        playlist.Files = await ScanFolderAsync(folder, count => playlist.ScanWarningCount = count);
         playlist.UpdatedAtUtc = DateTime.UtcNow;
         await SaveAsync();
         return true;
@@ -157,7 +159,7 @@ public sealed class MosuanFolderPlaylistService
         {
             var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList.GetFolderAsync(playlist.FolderToken);
             playlist.FolderPath = folder.Path;
-            playlist.Files = await ScanFolderAsync(folder);
+            playlist.Files = await ScanFolderAsync(folder, count => playlist.ScanWarningCount = count);
             playlist.UpdatedAtUtc = DateTime.UtcNow;
             await SaveAsync();
         }
@@ -240,24 +242,28 @@ public sealed class MosuanFolderPlaylistService
         return playlist.Files;
     }
 
-    private static async Task<List<string>> ScanFolderAsync(StorageFolder folder)
+    private static async Task<List<string>> ScanFolderAsync(StorageFolder folder, Action<int>? onSkipped = null)
     {
-        var files = await GetVideoFilesAsync(folder);
+        var skipped = new List<string>();
+        var files = await GetVideoFilesAsync(folder, skipped);
+        onSkipped?.Invoke(skipped.Count);
         return files.Select(x => x.Path).ToList();
     }
 
-    // Scan the whole folder tree so a course or lesson directory can keep its
-    // own subfolder structure without hiding videos from the playlist.
-    private static async Task<IReadOnlyList<StorageFile>> GetVideoFilesAsync(StorageFolder folder)
+    // Scan the whole folder tree. An inaccessible nested directory should not
+    // prevent the rest of a local/SMB playlist from being usable.
+    private static async Task<IReadOnlyList<StorageFile>> GetVideoFilesAsync(
+        StorageFolder folder, List<string>? skippedFolders = null)
     {
         var result = new List<StorageFile>();
-        await CollectVideoFilesAsync(folder, result);
+        await CollectVideoFilesAsync(folder, result, skippedFolders);
         return result
             .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private static async Task CollectVideoFilesAsync(StorageFolder folder, List<StorageFile> result)
+    private static async Task CollectVideoFilesAsync(
+        StorageFolder folder, List<StorageFile> result, List<string>? skippedFolders = null)
     {
         var files = await folder.GetFilesAsync();
         foreach (var file in files)
@@ -268,7 +274,20 @@ public sealed class MosuanFolderPlaylistService
 
         var folders = await folder.GetFoldersAsync();
         foreach (var child in folders.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
-            await CollectVideoFilesAsync(child, result);
+        {
+            try
+            {
+                await CollectVideoFilesAsync(child, result, skippedFolders);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                skippedFolders?.Add(child.Path);
+            }
+            catch (IOException)
+            {
+                skippedFolders?.Add(child.Path);
+            }
+        }
     }
 
     public static bool IsVideoFile(string path) =>
