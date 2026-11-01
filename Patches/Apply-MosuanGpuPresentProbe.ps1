@@ -70,6 +70,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             return null;
 
         IntPtr clone = IntPtr.Zero;
+        bool vtableInstalled = false;
         try
         {
             IntPtr originalVtable = Marshal.ReadIntPtr(swapChain);
@@ -99,6 +100,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
                 s_originalPresent = originalPresent;
                 s_originalPresent1 = originalPresent1;
                 Marshal.WriteIntPtr(swapChain, clone);
+                vtableInstalled = true;
             }
             finally
             {
@@ -109,9 +111,9 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
         }
         catch (Exception ex)
         {
-            if (clone != IntPtr.Zero)
+            if (clone != IntPtr.Zero && !vtableInstalled)
                 Marshal.FreeHGlobal(clone);
-            Debug.WriteLine($"Mosuan DXGI Present probe not installed; continuing without it: {ex}");
+            Trace.WriteLine($"Mosuan DXGI Present probe not installed; continuing without it: {ex}");
             return null;
         }
     }
@@ -144,7 +146,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             return;
 
         _disposed = true;
-        Debug.WriteLine($"Mosuan DXGI Present probe observed {PresentCount} Present/Present1 calls.");
+        Trace.WriteLine($"Mosuan DXGI Present probe observed {PresentCount} Present/Present1 calls.");
 
         try
         {
@@ -165,7 +167,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Mosuan DXGI Present probe could not restore the vtable: {ex}");
+            Trace.WriteLine($"Mosuan DXGI Present probe could not restore the vtable: {ex}");
         }
 
         // Keep the cloned table allocated: a Present call may already have loaded its
