@@ -29,6 +29,17 @@ public sealed class ChangeNormalizedCropMessage : ValueChangedMessage<Rect>
 
 # Extend the existing player view-model crop pipeline.
 $code = Get-Content -Raw -Encoding UTF8 $viewModelPath
+if (!$code.Contains('private bool _mosuanHasManualCrop;')) {
+    $anchor = '    private Size _viewSize;'
+    if (!$code.Contains($anchor)) { throw 'PlayerElementViewModel view size field anchor not found' }
+    $code = $code.Replace($anchor, $anchor + $nl + '    private bool _mosuanHasManualCrop;')
+}
+if ($code.Contains('SetCropGeometry(_aspectRatio);')) {
+    $code = $code.Replace('SetCropGeometry(_aspectRatio);', 'if (!_mosuanHasManualCrop) SetCropGeometry(_aspectRatio);')
+}
+if ($code.Contains('_aspectRatio = message.Value;')) {
+    $code = $code.Replace('_aspectRatio = message.Value;', '_mosuanHasManualCrop = false;' + $nl + '        _aspectRatio = message.Value;')
+}
 if (!$code.Contains('IRecipient<ChangeNormalizedCropMessage>')) {
     $anchor = 'IRecipient<SettingsChangedMessage>'
     if (!$code.Contains($anchor)) { throw 'PlayerElementViewModel recipient declaration anchor not found' }
@@ -96,7 +107,7 @@ if (!$code.Contains('public void Receive(ChangeNormalizedCropMessage message)'))
         double sourceCropWidth = ((clippedRight - clippedLeft) / displayedWidth) * currentSourceRect.Width;
         double sourceCropHeight = ((clippedBottom - clippedTop) / displayedHeight) * currentSourceRect.Height;
 
-        _aspectRatio = new Size(0, 0);
+        _mosuanHasManualCrop = true;
         VlcMediaPlayer.NormalizedSourceRect = new Rect(sourceX, sourceY, sourceCropWidth, sourceCropHeight);
     }
 
