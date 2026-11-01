@@ -434,6 +434,40 @@ if ($playerVm -notmatch 'MosuanPlaybackResumeIntegration') {
 }
 
 
+# Repair/complete the media lifecycle handlers independently of the main integration marker.
+# Earlier script versions could add event subscriptions without adding these methods.
+if ($playerVm -notmatch 'private async void OnMediaOpened\\(') {
+    $mediaHandlers = @'
+    private string? GetCurrentMediaLocation(IMediaPlayer sender)
+    {
+        return sender.PlaybackItem?.OriginalSource is IStorageItem item && !string.IsNullOrWhiteSpace(item.Path)
+            ? item.Path : null;
+    }
+
+    private async void OnMediaOpened(IMediaPlayer sender, object? args)
+    {
+        var location = GetCurrentMediaLocation(sender);
+        if (location is null) return;
+        await _progressLoadTask;
+        if (!string.Equals(location, GetCurrentMediaLocation(sender), StringComparison.OrdinalIgnoreCase)) return;
+        var position = _playbackProgressTracker.GetPosition(location);
+        if (position > TimeSpan.FromSeconds(3) && sender.NaturalDuration > position + TimeSpan.FromSeconds(3))
+            sender.Position = position;
+    }
+
+    private void OnMediaEnded(IMediaPlayer sender, object? args)
+    {
+        if (GetCurrentMediaLocation(sender) is { } location)
+        {
+            _playbackProgressTracker.RemovePosition(location);
+            _ = _playbackProgressTracker.SaveToDiskAsync();
+        }
+    }
+
+'@
+    $playerVm = $playerVm.Replace('    private void OnPositionChanged(IMediaPlayer sender, object? args)', $mediaHandlers + '    private void OnPositionChanged(IMediaPlayer sender, object? args)')
+}
+
 # Keep the pause-save patch independent from the one-time resume integration.
 # This also repairs older generated source trees where the main integration marker
 # exists but the pause-save marker is missing.
