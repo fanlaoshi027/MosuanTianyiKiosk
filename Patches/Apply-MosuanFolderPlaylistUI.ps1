@@ -436,7 +436,7 @@ if ($playerVm -notmatch 'MosuanPlaybackResumeIntegration') {
 
 # Repair/complete the media lifecycle handlers independently of the main integration marker.
 # Earlier script versions could add event subscriptions without adding these methods.
-if ($playerVm -notmatch 'private async void OnMediaOpened\\(') {
+if ($playerVm -notmatch 'private async void OnMediaOpened\(') {
     $mediaHandlers = @'
     private string? GetCurrentMediaLocation(IMediaPlayer sender)
     {
