@@ -34,10 +34,21 @@ public sealed class MosuanFolderPlaylist
     public string UpdatedAtText => UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }
 
+public sealed class MosuanRecentVideo
+{
+    public string PlaylistId { get; set; } = "";
+    public string PlaylistName { get; set; } = "";
+    public string FilePath { get; set; } = "";
+    public DateTime PlayedAtUtc { get; set; } = DateTime.UtcNow;
+    public string FileName => Path.GetFileName(FilePath);
+    public string PlayedAtText => PlayedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}
+
 public sealed class MosuanFolderPlaylistState
 {
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
     public List<MosuanFolderPlaylist> Playlists { get; set; } = new();
+    public List<MosuanRecentVideo> RecentVideos { get; set; } = new();
 }
 
 /// <summary>
@@ -62,8 +73,14 @@ public sealed class MosuanFolderPlaylistService
             var json = await FileIO.ReadTextAsync(file);
             State = JsonSerializer.Deserialize<MosuanFolderPlaylistState>(json) ?? new();
             State.Playlists ??= new();
+            State.RecentVideos ??= new();
             foreach (var playlist in State.Playlists)
                 playlist.Files ??= new();
+            State.RecentVideos = State.RecentVideos
+                .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.FilePath))
+                .OrderByDescending(x => x.PlayedAtUtc)
+                .Take(50)
+                .ToList();
         }
         catch
         {
@@ -193,6 +210,8 @@ public sealed class MosuanFolderPlaylistService
         if (files.Count == 0)
             throw new InvalidOperationException("该文件夹中没有找到支持的视频文件，请先刷新列表或检查文件格式。");
 
+        var firstPath = files[0].Path;
+        await RecordRecentAsync(playlist, firstPath);
         global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new PlayFilesMessage(files.Cast<IStorageItem>().ToArray()));
     }
 
@@ -213,6 +232,53 @@ public sealed class MosuanFolderPlaylistService
         if (selected is null)
             throw new FileNotFoundException("视频文件不存在或当前不可访问，请刷新播放列表。", filePath);
 
+        await RecordRecentAsync(playlist, selected.Path);
+        global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+            new PlayFilesMessage(new IStorageItem[] { selected }));
+    }
+
+    private async Task RecordRecentAsync(MosuanFolderPlaylist playlist, string filePath)
+    {
+        State.RecentVideos ??= new();
+        State.RecentVideos.RemoveAll(x =>
+            string.Equals(x.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+        State.RecentVideos.Insert(0, new MosuanRecentVideo
+        {
+            PlaylistId = playlist.Id,
+            PlaylistName = playlist.Name,
+            FilePath = filePath,
+            PlayedAtUtc = DateTime.UtcNow
+        });
+        if (State.RecentVideos.Count > 50)
+            State.RecentVideos = State.RecentVideos.Take(50).ToList();
+        await SaveAsync();
+    }
+
+    public IReadOnlyList<MosuanRecentVideo> GetRecentVideos() =>
+        (State.RecentVideos ?? new())
+            .OrderByDescending(x => x.PlayedAtUtc)
+            .ToArray();
+
+    public async Task PlayRecentAsync(string filePath)
+    {
+        var recent = GetRecentVideos().FirstOrDefault(x =>
+            string.Equals(x.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+        if (recent is null)
+            throw new InvalidOperationException("最近播放记录不存在。");
+
+        var playlist = Find(recent.PlaylistId);
+        if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken))
+            throw new InvalidOperationException("原文件夹播放列表不存在或访问权限已失效，请先重新添加文件夹。");
+
+        var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions
+            .FutureAccessList.GetFolderAsync(playlist.FolderToken);
+        var files = await GetVideoFilesAsync(folder);
+        var selected = files.FirstOrDefault(x =>
+            string.Equals(x.Path, filePath, StringComparison.OrdinalIgnoreCase));
+        if (selected is null)
+            throw new FileNotFoundException("最近播放的视频已不存在或当前不可访问。", filePath);
+
+        await RecordRecentAsync(playlist, selected.Path);
         global::CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
             new PlayFilesMessage(new IStorageItem[] { selected }));
     }
