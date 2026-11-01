@@ -489,4 +489,23 @@ if ($playerVm -notmatch '(?m)^\s*private void OnMediaEnded\(') {
 if ($playerVm -notmatch 'MosuanPauseProgressSave') {
     $playerVm = $playerVm.Replace('        _transportControlsService.UpdatePlaybackStatus(sender.PlaybackState);', '        _transportControlsService.UpdatePlaybackStatus(sender.PlaybackState);' + $nl + '        // MosuanPauseProgressSave' + $nl + '        if (sender.PlaybackState == MediaPlaybackState.Paused)' + $nl + '            _ = _playbackProgressTracker.SaveToDiskAsync();')
 }
+# Prevent a late PositionChanged callback from recreating a resume point after MediaEnded.
+if ($playerVm -notmatch '_completedMediaLocation') {
+    $playerVm = $playerVm.Replace(
+        '    private DateTimeOffset _lastProgressSaveUtc = DateTimeOffset.MinValue;',
+        '    private DateTimeOffset _lastProgressSaveUtc = DateTimeOffset.MinValue;' + $nl + '    private string? _completedMediaLocation;'
+    )
+    $playerVm = $playerVm.Replace(
+        '        if (location is null) return;' + $nl + '        await _progressLoadTask;',
+        '        if (location is null) return;' + $nl + '        _completedMediaLocation = null;' + $nl + '        await _progressLoadTask;'
+    )
+    $playerVm = $playerVm.Replace(
+        '        if (GetCurrentMediaLocation(sender) is { } location)' + $nl + '        {' + $nl + '            _playbackProgressTracker.RemovePosition(location);',
+        '        if (GetCurrentMediaLocation(sender) is { } location)' + $nl + '        {' + $nl + '            _completedMediaLocation = location;' + $nl + '            _playbackProgressTracker.RemovePosition(location);'
+    )
+    $playerVm = $playerVm.Replace(
+        '        if (GetCurrentMediaLocation(sender) is { } location && sender.Position > TimeSpan.FromSeconds(1))',
+        '        if (GetCurrentMediaLocation(sender) is { } location && !string.Equals(location, _completedMediaLocation, StringComparison.OrdinalIgnoreCase) && sender.Position > TimeSpan.FromSeconds(1))'
+    )
+}
 Set-Content -Path $playerVmPath -Value $playerVm -Encoding UTF8
