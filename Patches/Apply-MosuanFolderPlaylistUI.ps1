@@ -38,6 +38,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
+                                <Button Content="打开目录" Tag="{Binding Id}" Click="FolderPlaylistOpenFolder_Click" />
                                 <Button Content="重命名" Tag="{Binding Id}" Click="FolderPlaylistRename_Click" />
                                 <Button Content="上移" Tag="{Binding Id}" Click="FolderPlaylistMoveUp_Click" />
                                 <Button Content="下移" Tag="{Binding Id}" Click="FolderPlaylistMoveDown_Click" />
@@ -137,6 +138,21 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+    private async void FolderPlaylistOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string id)
+        {
+            try
+            {
+                var opened = await _folderPlaylistService.OpenFolderAsync(id);
+                FolderPlaylistStatus.Text = opened
+                    ? "已打开对应文件夹。"
+                    : "Windows 暂时无法打开该文件夹，请检查访问权限。";
+            }
+            catch (Exception exception) { ShowFolderPlaylistError(exception); }
+        }
     }
 
     private async void FolderPlaylistRename_Click(object sender, RoutedEventArgs e)
