@@ -208,6 +208,21 @@ public sealed class MosuanFolderPlaylistService
         return true;
     }
 
+    public async Task<bool> MoveAsync(string playlistId, int offset)
+    {
+        var index = State.Playlists.FindIndex(x => x.Id == playlistId);
+        if (index < 0) return false;
+
+        var target = index + offset;
+        if (target < 0 || target >= State.Playlists.Count) return false;
+
+        var playlist = State.Playlists[index];
+        State.Playlists.RemoveAt(index);
+        State.Playlists.Insert(target, playlist);
+        await SaveAsync();
+        return true;
+    }
+
     public IReadOnlyList<string> GetFiles(string playlistId)
     {
         var playlist = Find(playlistId);
