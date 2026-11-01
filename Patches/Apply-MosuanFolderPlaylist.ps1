@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using Screenbox.Core.Messages;
 using Windows.Storage;
@@ -58,6 +59,9 @@ public sealed class MosuanFolderPlaylistState
 /// </summary>
 public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemChangedMessage>
 {
+    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private bool _isLoaded;
+
     public MosuanFolderPlaylistService()
     {
         WeakReferenceMessenger.Default.Register<QueueCurrentItemChangedMessage>(this);
@@ -78,6 +82,7 @@ public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemCha
     {
         try
         {
+            await LoadAsync();
             var playlist = State.Playlists.FirstOrDefault(x =>
                 x.Files?.Any(path => string.Equals(path, filePath, StringComparison.OrdinalIgnoreCase)) == true);
             if (playlist is null) return;
@@ -97,9 +102,14 @@ public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemCha
 
     public async Task LoadAsync()
     {
+        if (_isLoaded) return;
+        await _loadLock.WaitAsync();
         try
         {
-            var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(
+            if (_isLoaded) return;
+            try
+            {
+                var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(
                 StoreName, CreationCollisionOption.OpenIfExists);
             var json = await FileIO.ReadTextAsync(file);
             State = JsonSerializer.Deserialize<MosuanFolderPlaylistState>(json) ?? new();
@@ -107,15 +117,21 @@ public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemCha
             State.RecentVideos ??= new();
             foreach (var playlist in State.Playlists)
                 playlist.Files ??= new();
-            State.RecentVideos = State.RecentVideos
-                .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.FilePath))
-                .OrderByDescending(x => x.PlayedAtUtc)
-                .Take(50)
-                .ToList();
+                State.RecentVideos = State.RecentVideos
+                    .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.FilePath))
+                    .OrderByDescending(x => x.PlayedAtUtc)
+                    .Take(50)
+                    .ToList();
+            }
+            catch
+            {
+                State = new();
+            }
+            _isLoaded = true;
         }
-        catch
+        finally
         {
-            State = new();
+            _loadLock.Release();
         }
     }
 
@@ -411,3 +427,30 @@ public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemCha
 '@ | Set-Content -Path $target -Encoding UTF8
 
 Write-Host 'Mosuan folder playlist service generated with FutureAccessList permissions.'
+
+
+# Keep folder playlist and recent-history tracking alive for the entire app session.
+$appPath = Join-Path $root 'App.xaml.cs'
+$app = Get-Content -Raw $appPath
+if ($app -notmatch 'using Screenbox\.Models;') {
+    $app = $app.Replace('using Screenbox.Pages;', 'using Screenbox.Pages;' + $nl + 'using Screenbox.Models;')
+}
+if ($app -notmatch 'MosuanFolderPlaylistService _mosuanFolderPlaylistService') {
+    $app = $app.Replace(
+        '    private readonly ITelemetryService _telemetryService;',
+        '    private readonly ITelemetryService _telemetryService;' + $nl + '    private readonly MosuanFolderPlaylistService _mosuanFolderPlaylistService;'
+    )
+}
+if ($app -notmatch 'services\.AddSingleton<MosuanFolderPlaylistService>') {
+    $app = $app.Replace(
+        '        services.AddSingleton<IVlcDialogService, VlcDialogService>();',
+        '        services.AddSingleton<MosuanFolderPlaylistService>();' + $nl + '        services.AddSingleton<IVlcDialogService, VlcDialogService>();'
+    )
+}
+if ($app -notmatch '_mosuanFolderPlaylistService = _services\.GetRequiredService') {
+    $app = $app.Replace(
+        '        _telemetryService = _services.GetRequiredService<ITelemetryService>();',
+        '        _telemetryService = _services.GetRequiredService<ITelemetryService>();' + $nl + '        _mosuanFolderPlaylistService = _services.GetRequiredService<MosuanFolderPlaylistService>();' + $nl + '        _ = _mosuanFolderPlaylistService.LoadAsync();'
+    )
+}
+Set-Content -Path $appPath -Value $app -Encoding UTF8
