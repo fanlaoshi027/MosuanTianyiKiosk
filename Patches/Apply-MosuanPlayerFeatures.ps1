@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $nl = [Environment]::NewLine
 
-$coreRoot = Join-Path $PSScriptRoot '..\Screenbox.Core'
+$coreRoot = Join-Path $PSScriptRoot '..\Screenbox\Screenbox.Core'
 $messagePath = Join-Path $coreRoot 'Messages\ChangeNormalizedCropMessage.cs'
 $viewModelPath = Join-Path $coreRoot 'ViewModels\PlayerElementViewModel.cs'
 $vlcPlayerPath = Join-Path $coreRoot 'Playback\VlcMediaPlayer.cs'
