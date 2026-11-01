@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$nl = [Environment]::NewLine
 
 $root = Join-Path $PSScriptRoot '..\Screenbox\Screenbox'
 $models = Join-Path $root 'Models'
@@ -116,8 +117,10 @@ public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemCha
             State.Playlists ??= new();
             State.RecentVideos ??= new();
             foreach (var playlist in State.Playlists)
+            {
                 playlist.Files ??= new();
-                State.RecentVideos = State.RecentVideos
+            }
+            State.RecentVideos = State.RecentVideos
                     .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.FilePath))
                     .OrderByDescending(x => x.PlayedAtUtc)
                     .Take(50)
