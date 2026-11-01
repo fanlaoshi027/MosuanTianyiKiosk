@@ -126,12 +126,24 @@ $oldCrop = @'
                 VlcPlayer.CropGeometry = $"{newWidth:F0}:{newHeight:F0}";
 '@
 $newCrop = @'
-                // Apply the complete normalized crop window (width x height + left + top).
-                double newWidth = value.Width * NaturalVideoWidth;
-                double newHeight = value.Height * NaturalVideoHeight;
-                double leftOffset = value.X * NaturalVideoWidth;
-                double topOffset = value.Y * NaturalVideoHeight;
-                VlcPlayer.CropGeometry = $"{newWidth:F0}x{newHeight:F0}+{leftOffset:F0}+{topOffset:F0}";
+                // Convert both edges to integer source-pixel boundaries. Rounding
+                // the edges independently avoids a one-pixel overflow at the right
+                // or bottom edge after converting normalized coordinates.
+                uint sourceWidth = NaturalVideoWidth;
+                uint sourceHeight = NaturalVideoHeight;
+                if (sourceWidth == 0 || sourceHeight == 0) return;
+
+                uint leftOffset = (uint)Math.Floor(value.X * sourceWidth);
+                uint topOffset = (uint)Math.Floor(value.Y * sourceHeight);
+                uint rightEdge = (uint)Math.Ceiling((value.X + value.Width) * sourceWidth);
+                uint bottomEdge = (uint)Math.Ceiling((value.Y + value.Height) * sourceHeight);
+                rightEdge = Math.Min(rightEdge, sourceWidth);
+                bottomEdge = Math.Min(bottomEdge, sourceHeight);
+
+                uint cropWidth = rightEdge > leftOffset ? rightEdge - leftOffset : 1;
+                uint cropHeight = bottomEdge > topOffset ? bottomEdge - topOffset : 1;
+                VlcPlayer.CropGeometry = FormattableString.Invariant(
+                    $"{cropWidth}x{cropHeight}+{leftOffset}+{topOffset}");
 '@
 if ($vlcCode.Contains($oldCrop)) {
     $vlcCode = $vlcCode.Replace($oldCrop, $newCrop)
