@@ -434,16 +434,17 @@ if ($playerVm -notmatch 'MosuanPlaybackResumeIntegration') {
 }
 
 
-# Repair/complete the media lifecycle handlers independently of the main integration marker.
-# Earlier script versions could add event subscriptions without adding these methods.
-if ($playerVm -notmatch 'private async void OnMediaOpened\(') {
-    $mediaHandlers = @'
+# Repair each media lifecycle method independently. Older generated source trees may
+# contain only a subset of these handlers after a partially applied patch.
+$mediaLocationMethod = @'
     private string? GetCurrentMediaLocation(IMediaPlayer sender)
     {
         return sender.PlaybackItem?.OriginalSource is IStorageItem item && !string.IsNullOrWhiteSpace(item.Path)
             ? item.Path : null;
     }
 
+'@
+$mediaOpenedMethod = @'
     private async void OnMediaOpened(IMediaPlayer sender, object? args)
     {
         var location = GetCurrentMediaLocation(sender);
@@ -455,6 +456,8 @@ if ($playerVm -notmatch 'private async void OnMediaOpened\(') {
             sender.Position = position;
     }
 
+'@
+$mediaEndedMethod = @'
     private void OnMediaEnded(IMediaPlayer sender, object? args)
     {
         if (GetCurrentMediaLocation(sender) is { } location)
@@ -465,7 +468,19 @@ if ($playerVm -notmatch 'private async void OnMediaOpened\(') {
     }
 
 '@
-    $playerVm = $playerVm.Replace('    private void OnPositionChanged(IMediaPlayer sender, object? args)', $mediaHandlers + '    private void OnPositionChanged(IMediaPlayer sender, object? args)')
+
+$positionHandlerAnchor = '    private void OnPositionChanged(IMediaPlayer sender, object? args)'
+if ($playerVm -notmatch '(?m)^\s*private string\? GetCurrentMediaLocation\(') {
+    if (-not $playerVm.Contains($positionHandlerAnchor)) { throw 'Could not locate OnPositionChanged for media location helper.' }
+    $playerVm = $playerVm.Replace($positionHandlerAnchor, $mediaLocationMethod + $positionHandlerAnchor)
+}
+if ($playerVm -notmatch '(?m)^\s*private async void OnMediaOpened\(') {
+    if (-not $playerVm.Contains($positionHandlerAnchor)) { throw 'Could not locate OnPositionChanged for MediaOpened handler.' }
+    $playerVm = $playerVm.Replace($positionHandlerAnchor, $mediaOpenedMethod + $positionHandlerAnchor)
+}
+if ($playerVm -notmatch '(?m)^\s*private void OnMediaEnded\(') {
+    if (-not $playerVm.Contains($positionHandlerAnchor)) { throw 'Could not locate OnPositionChanged for MediaEnded handler.' }
+    $playerVm = $playerVm.Replace($positionHandlerAnchor, $mediaEndedMethod + $positionHandlerAnchor)
 }
 
 # Keep the pause-save patch independent from the one-time resume integration.
