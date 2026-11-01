@@ -142,6 +142,16 @@ $newCrop = @'
 
                 uint cropWidth = rightEdge > leftOffset ? rightEdge - leftOffset : 1;
                 uint cropHeight = bottomEdge > topOffset ? bottomEdge - topOffset : 1;
+
+                // Keep the managed rectangle aligned with the integer crop that
+                // VLC actually applies. Otherwise repeated crops accumulate small
+                // fractional-coordinate drift.
+                _normalizedSourceRect = new Rect(
+                    (double)leftOffset / sourceWidth,
+                    (double)topOffset / sourceHeight,
+                    (double)cropWidth / sourceWidth,
+                    (double)cropHeight / sourceHeight);
+
                 VlcPlayer.CropGeometry = FormattableString.Invariant(
                     $"{cropWidth}x{cropHeight}+{leftOffset}+{topOffset}");
 '@
