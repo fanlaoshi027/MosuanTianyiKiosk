@@ -58,7 +58,46 @@ if (!$code.Contains('public void Receive(ChangeNormalizedCropMessage message)'))
             return;
         }
 
-        VlcMediaPlayer.NormalizedSourceRect = rect;
+        // The page sends a rectangle normalized to the VideoView viewport.
+        // Convert it through the actual letterboxed image bounds and the current crop
+        // so black bars are never interpreted as part of the source image.
+        double viewWidth = _viewSize.Width;
+        double viewHeight = _viewSize.Height;
+        double sourceWidth = VlcMediaPlayer.NaturalVideoWidth * VlcMediaPlayer.NormalizedSourceRect.Width;
+        double sourceHeight = VlcMediaPlayer.NaturalVideoHeight * VlcMediaPlayer.NormalizedSourceRect.Height;
+        if (viewWidth <= 0 || viewHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0)
+        {
+            return;
+        }
+
+        Rect currentSourceRect = VlcMediaPlayer.NormalizedSourceRect;
+        double scale = Math.Min(viewWidth / sourceWidth, viewHeight / sourceHeight);
+        double displayedWidth = sourceWidth * scale;
+        double displayedHeight = sourceHeight * scale;
+        double imageLeft = (viewWidth - displayedWidth) / 2;
+        double imageTop = (viewHeight - displayedHeight) / 2;
+
+        double selectionLeft = rect.X * viewWidth;
+        double selectionTop = rect.Y * viewHeight;
+        double selectionRight = (rect.X + rect.Width) * viewWidth;
+        double selectionBottom = (rect.Y + rect.Height) * viewHeight;
+
+        double clippedLeft = Math.Max(selectionLeft, imageLeft);
+        double clippedTop = Math.Max(selectionTop, imageTop);
+        double clippedRight = Math.Min(selectionRight, imageLeft + displayedWidth);
+        double clippedBottom = Math.Min(selectionBottom, imageTop + displayedHeight);
+        if (clippedRight - clippedLeft < 2 || clippedBottom - clippedTop < 2)
+        {
+            return;
+        }
+
+        double sourceX = currentSourceRect.X + ((clippedLeft - imageLeft) / displayedWidth) * currentSourceRect.Width;
+        double sourceY = currentSourceRect.Y + ((clippedTop - imageTop) / displayedHeight) * currentSourceRect.Height;
+        double sourceCropWidth = ((clippedRight - clippedLeft) / displayedWidth) * currentSourceRect.Width;
+        double sourceCropHeight = ((clippedBottom - clippedTop) / displayedHeight) * currentSourceRect.Height;
+
+        _aspectRatio = new Size(0, 0);
+        VlcMediaPlayer.NormalizedSourceRect = new Rect(sourceX, sourceY, sourceCropWidth, sourceCropHeight);
     }
 
 '@
