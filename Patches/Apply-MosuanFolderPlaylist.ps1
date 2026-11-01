@@ -197,6 +197,16 @@ public sealed class MosuanFolderPlaylistService
     public MosuanFolderPlaylist? Find(string playlistId) =>
         State.Playlists.FirstOrDefault(x => x.Id == playlistId);
 
+    public async Task<bool> OpenFolderAsync(string playlistId)
+    {
+        var playlist = Find(playlistId);
+        if (playlist is null || string.IsNullOrWhiteSpace(playlist.FolderToken)) return false;
+
+        var folder = await global::Windows.Storage.AccessCache.StorageApplicationPermissions
+            .FutureAccessList.GetFolderAsync(playlist.FolderToken);
+        return await global::Windows.System.Launcher.LaunchFolderAsync(folder);
+    }
+
     public async Task<bool> RenameAsync(string playlistId, string name)
     {
         var playlist = Find(playlistId);
