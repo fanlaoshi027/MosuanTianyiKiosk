@@ -71,6 +71,10 @@ if (!$xaml.Contains('x:Name="MosuanCropOverlay"')) {
                 StrokeThickness="2"
                 IsHitTestVisible="False"
                 Visibility="Collapsed" />
+            <Rectangle x:Name="MosuanCropHandleTopLeft" Width="12" Height="12" Fill="#FFFF8A00" IsHitTestVisible="False" Visibility="Collapsed" />
+            <Rectangle x:Name="MosuanCropHandleTopRight" Width="12" Height="12" Fill="#FFFF8A00" IsHitTestVisible="False" Visibility="Collapsed" />
+            <Rectangle x:Name="MosuanCropHandleBottomLeft" Width="12" Height="12" Fill="#FFFF8A00" IsHitTestVisible="False" Visibility="Collapsed" />
+            <Rectangle x:Name="MosuanCropHandleBottomRight" Width="12" Height="12" Fill="#FFFF8A00" IsHitTestVisible="False" Visibility="Collapsed" />
         </Canvas>
 '@
     # PlayerElement is self-closing in the upstream XAML. Insert after its element,
@@ -99,7 +103,14 @@ if (!$code.Contains('using Screenbox.Core.Messages;')) {
 if (!$code.Contains('private bool _mosuanCropPointerCaptured;')) {
     $anchor = '    private bool _startup;'
     if (!$code.Contains($anchor)) { throw 'PlayerPage startup field anchor not found' }
-    $code = $code.Replace($anchor, $anchor + [Environment]::NewLine + '    private bool _mosuanCropPointerCaptured;' + [Environment]::NewLine + '    private Point _mosuanCropStart;')
+    $code = $code.Replace($anchor, $anchor + [Environment]::NewLine +
+        '    private bool _mosuanCropPointerCaptured;' + [Environment]::NewLine +
+        '    private bool _mosuanCropHasSelection;' + [Environment]::NewLine +
+        '    private int _mosuanCropDragMode;' + [Environment]::NewLine +
+        '    private Point _mosuanCropStart;' + [Environment]::NewLine +
+        '    private Point _mosuanCropPointerStart;' + [Environment]::NewLine +
+        '    private Rect _mosuanCropStartRect;' + [Environment]::NewLine +
+        '    private Rect _mosuanCropViewportRect;')
 }
 
 if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
@@ -107,35 +118,129 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
 
     private void MosuanBeginFreeCrop_OnClick(object sender, RoutedEventArgs e)
     {
-        MosuanCropSelection.Visibility = Visibility.Collapsed;
+        double width = MosuanCropOverlay.ActualWidth;
+        double height = MosuanCropOverlay.ActualHeight;
+        if (_mosuanCropHasSelection && width > 0 && height > 0)
+        {
+            Canvas.SetLeft(MosuanCropSelection, _mosuanCropViewportRect.X * width);
+            Canvas.SetTop(MosuanCropSelection, _mosuanCropViewportRect.Y * height);
+            MosuanCropSelection.Width = _mosuanCropViewportRect.Width * width;
+            MosuanCropSelection.Height = _mosuanCropViewportRect.Height * height;
+            MosuanCropSelection.Visibility = Visibility.Visible;
+            MosuanUpdateCropHandles();
+        }
+        else
+        {
+            MosuanCropSelection.Visibility = Visibility.Collapsed;
+            MosuanSetCropHandlesVisible(false);
+        }
+
         MosuanCropOverlay.Visibility = Visibility.Visible;
         ViewModel.ControlsHidden = true;
     }
 
     private void MosuanCropOverlay_OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        _mosuanCropStart = e.GetCurrentPoint(MosuanCropOverlay).Position;
+        Point current = e.GetCurrentPoint(MosuanCropOverlay).Position;
+        double left = Canvas.GetLeft(MosuanCropSelection);
+        double top = Canvas.GetTop(MosuanCropSelection);
+        double right = left + MosuanCropSelection.Width;
+        double bottom = top + MosuanCropSelection.Height;
+        bool inside = _mosuanCropHasSelection
+            && MosuanCropSelection.Visibility == Visibility.Visible
+            && current.X >= left && current.X <= right
+            && current.Y >= top && current.Y <= bottom;
+
+        _mosuanCropDragMode = 0; // New selection
+        if (inside)
+        {
+            const double handleRadius = 18;
+            bool nearLeft = Math.Abs(current.X - left) <= handleRadius;
+            bool nearRight = Math.Abs(current.X - right) <= handleRadius;
+            bool nearTop = Math.Abs(current.Y - top) <= handleRadius;
+            bool nearBottom = Math.Abs(current.Y - bottom) <= handleRadius;
+            if (nearLeft && nearTop) _mosuanCropDragMode = 2 | 8;
+            else if (nearRight && nearTop) _mosuanCropDragMode = 4 | 8;
+            else if (nearLeft && nearBottom) _mosuanCropDragMode = 2 | 16;
+            else if (nearRight && nearBottom) _mosuanCropDragMode = 4 | 16;
+            else _mosuanCropDragMode = 1; // Move
+        }
+
+        _mosuanCropPointerStart = current;
+        _mosuanCropStartRect = inside
+            ? new Rect(left, top, MosuanCropSelection.Width, MosuanCropSelection.Height)
+            : new Rect(current.X, current.Y, 0, 0);
+
+        if (_mosuanCropDragMode == 0)
+        {
+            Canvas.SetLeft(MosuanCropSelection, current.X);
+            Canvas.SetTop(MosuanCropSelection, current.Y);
+            MosuanCropSelection.Width = 0;
+            MosuanCropSelection.Height = 0;
+            MosuanCropSelection.Visibility = Visibility.Visible;
+        }
+
         _mosuanCropPointerCaptured = MosuanCropOverlay.CapturePointer(e.Pointer);
-        Canvas.SetLeft(MosuanCropSelection, _mosuanCropStart.X);
-        Canvas.SetTop(MosuanCropSelection, _mosuanCropStart.Y);
-        MosuanCropSelection.Width = 0;
-        MosuanCropSelection.Height = 0;
-        MosuanCropSelection.Visibility = Visibility.Visible;
         e.Handled = true;
     }
 
     private void MosuanCropOverlay_OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (!_mosuanCropPointerCaptured) return;
+
         Point current = e.GetCurrentPoint(MosuanCropOverlay).Position;
-        double left = Math.Max(0, Math.Min(_mosuanCropStart.X, current.X));
-        double top = Math.Max(0, Math.Min(_mosuanCropStart.Y, current.Y));
-        double right = Math.Min(MosuanCropOverlay.ActualWidth, Math.Max(_mosuanCropStart.X, current.X));
-        double bottom = Math.Min(MosuanCropOverlay.ActualHeight, Math.Max(_mosuanCropStart.Y, current.Y));
+        double canvasWidth = MosuanCropOverlay.ActualWidth;
+        double canvasHeight = MosuanCropOverlay.ActualHeight;
+        double dx = current.X - _mosuanCropPointerStart.X;
+        double dy = current.Y - _mosuanCropPointerStart.Y;
+        double left;
+        double top;
+        double width;
+        double height;
+
+        if (_mosuanCropDragMode == 0)
+        {
+            double right = Math.Max(_mosuanCropPointerStart.X, current.X);
+            double bottom = Math.Max(_mosuanCropPointerStart.Y, current.Y);
+            left = Math.Max(0, Math.Min(_mosuanCropPointerStart.X, current.X));
+            top = Math.Max(0, Math.Min(_mosuanCropPointerStart.Y, current.Y));
+            right = Math.Min(canvasWidth, right);
+            bottom = Math.Min(canvasHeight, bottom);
+            width = Math.Max(0, right - left);
+            height = Math.Max(0, bottom - top);
+        }
+        else if (_mosuanCropDragMode == 1)
+        {
+            width = _mosuanCropStartRect.Width;
+            height = _mosuanCropStartRect.Height;
+            left = Math.Max(0, Math.Min(canvasWidth - width, _mosuanCropStartRect.X + dx));
+            top = Math.Max(0, Math.Min(canvasHeight - height, _mosuanCropStartRect.Y + dy));
+        }
+        else
+        {
+            left = _mosuanCropStartRect.X;
+            top = _mosuanCropStartRect.Y;
+            double right = left + _mosuanCropStartRect.Width;
+            double bottom = top + _mosuanCropStartRect.Height;
+
+            if ((_mosuanCropDragMode & 2) != 0)
+                left = Math.Max(0, Math.Min(right - 24, left + dx));
+            if ((_mosuanCropDragMode & 4) != 0)
+                right = Math.Min(canvasWidth, Math.Max(left + 24, right + dx));
+            if ((_mosuanCropDragMode & 8) != 0)
+                top = Math.Max(0, Math.Min(bottom - 24, top + dy));
+            if ((_mosuanCropDragMode & 16) != 0)
+                bottom = Math.Min(canvasHeight, Math.Max(top + 24, bottom + dy));
+
+            width = Math.Max(0, right - left);
+            height = Math.Max(0, bottom - top);
+        }
+
         Canvas.SetLeft(MosuanCropSelection, left);
         Canvas.SetTop(MosuanCropSelection, top);
-        MosuanCropSelection.Width = Math.Max(0, right - left);
-        MosuanCropSelection.Height = Math.Max(0, bottom - top);
+        MosuanCropSelection.Width = width;
+        MosuanCropSelection.Height = height;
+        MosuanUpdateCropHandles();
         e.Handled = true;
     }
 
@@ -153,18 +258,12 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
         double cropHeight = MosuanCropSelection.Height;
 
         MosuanCropOverlay.Visibility = Visibility.Collapsed;
-        if (width <= 0 || height <= 0 || cropWidth < 24 || cropHeight < 24)
+        if (width > 0 && height > 0 && cropWidth >= 24 && cropHeight >= 24)
         {
-            ViewModel.ControlsHidden = false;
-            return;
+            _mosuanCropViewportRect = new Rect(left / width, top / height, cropWidth / width, cropHeight / height);
+            _mosuanCropHasSelection = true;
+            WeakReferenceMessenger.Default.Send(new ChangeNormalizedCropMessage(_mosuanCropViewportRect));
         }
-
-        double x = Math.Max(0, Math.Min(1, left / width));
-        double y = Math.Max(0, Math.Min(1, top / height));
-        double w = Math.Max(0, Math.Min(1 - x, cropWidth / width));
-        double h = Math.Max(0, Math.Min(1 - y, cropHeight / height));
-        if (w > 0 && h > 0)
-            WeakReferenceMessenger.Default.Send(new ChangeNormalizedCropMessage(new Rect(x, y, w, h)));
 
         ViewModel.ControlsHidden = false;
         e.Handled = true;
@@ -174,8 +273,43 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
     {
         _mosuanCropPointerCaptured = false;
         MosuanCropOverlay.Visibility = Visibility.Collapsed;
-        MosuanCropSelection.Visibility = Visibility.Collapsed;
+        if (_mosuanCropHasSelection)
+        {
+            double width = MosuanCropOverlay.ActualWidth;
+            double height = MosuanCropOverlay.ActualHeight;
+            Canvas.SetLeft(MosuanCropSelection, _mosuanCropViewportRect.X * width);
+            Canvas.SetTop(MosuanCropSelection, _mosuanCropViewportRect.Y * height);
+            MosuanCropSelection.Width = _mosuanCropViewportRect.Width * width;
+            MosuanCropSelection.Height = _mosuanCropViewportRect.Height * height;
+            MosuanUpdateCropHandles();
+        }
         ViewModel.ControlsHidden = false;
+    }
+
+    private void MosuanUpdateCropHandles()
+    {
+        double left = Canvas.GetLeft(MosuanCropSelection);
+        double top = Canvas.GetTop(MosuanCropSelection);
+        double right = left + MosuanCropSelection.Width;
+        double bottom = top + MosuanCropSelection.Height;
+        Canvas.SetLeft(MosuanCropHandleTopLeft, left - 6);
+        Canvas.SetTop(MosuanCropHandleTopLeft, top - 6);
+        Canvas.SetLeft(MosuanCropHandleTopRight, right - 6);
+        Canvas.SetTop(MosuanCropHandleTopRight, top - 6);
+        Canvas.SetLeft(MosuanCropHandleBottomLeft, left - 6);
+        Canvas.SetTop(MosuanCropHandleBottomLeft, bottom - 6);
+        Canvas.SetLeft(MosuanCropHandleBottomRight, right - 6);
+        Canvas.SetTop(MosuanCropHandleBottomRight, bottom - 6);
+        MosuanSetCropHandlesVisible(true);
+    }
+
+    private void MosuanSetCropHandlesVisible(bool visible)
+    {
+        Visibility state = visible ? Visibility.Visible : Visibility.Collapsed;
+        MosuanCropHandleTopLeft.Visibility = state;
+        MosuanCropHandleTopRight.Visibility = state;
+        MosuanCropHandleBottomLeft.Visibility = state;
+        MosuanCropHandleBottomRight.Visibility = state;
     }
 '@
     $lastBrace = $code.LastIndexOf('}')
@@ -204,6 +338,10 @@ if (!$code.Contains('MosuanAspectRatio_OnClick')) {
 
     private void MosuanResetCrop_OnClick(object sender, RoutedEventArgs e)
     {
+        _mosuanCropHasSelection = false;
+        MosuanCropOverlay.Visibility = Visibility.Collapsed;
+        MosuanCropSelection.Visibility = Visibility.Collapsed;
+        MosuanSetCropHandlesVisible(false);
         WeakReferenceMessenger.Default.Send(new ChangeAspectRatioMessage(new Size(0, 0)));
     }
 '@
