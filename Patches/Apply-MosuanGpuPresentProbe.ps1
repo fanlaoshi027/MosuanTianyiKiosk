@@ -144,6 +144,8 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             return;
 
         _disposed = true;
+        Debug.WriteLine($"Mosuan DXGI Present probe observed {PresentCount} Present/Present1 calls.");
+
         try
         {
             if (Marshal.ReadIntPtr(_swapChain) != _hookedVtable)
