@@ -84,9 +84,20 @@ if ($code.Contains($catchAnchor) -and !$code.Contains('Interlocked.Exchange(ref 
         '            Interlocked.Exchange(ref s_lastInstallError, ex.ToString());' + $nl + $catchAnchor)
 }
 $disposeAnchor = '        _disposed = true;'
-if ($code.Contains($disposeAnchor) -and !$code.Contains('Interlocked.Decrement(ref s_activeHookCount);')) {
-    $code = $code.Replace($disposeAnchor,
-        $disposeAnchor + $nl + '        Interlocked.Decrement(ref s_activeHookCount);')
+if ($code.Contains($disposeAnchor)) {
+    # The hook remains active if VirtualProtect fails. Decrement only when we
+    # know this instance no longer owns the swap-chain vtable.
+    $code = $code.Replace($disposeAnchor, $disposeAnchor + $nl +
+        '        if (Marshal.ReadIntPtr(_swapChain) != _hookedVtable)' + $nl +
+        '        {' + $nl +
+        '            Interlocked.Decrement(ref s_activeHookCount);' + $nl +
+        '            return;' + $nl +
+        '        }')
+    $restoreAnchor = '                Marshal.WriteIntPtr(_swapChain, _originalVtable);'
+    if ($code.Contains($restoreAnchor) -and !$code.Contains('                Interlocked.Decrement(ref s_activeHookCount);')) {
+        $code = $code.Replace($restoreAnchor, $restoreAnchor + $nl +
+            '                Interlocked.Decrement(ref s_activeHookCount);')
+    }
 }
 Set-Content -Path $probePath -Value $code -Encoding UTF8
 
