@@ -1,9 +1,64 @@
 $ErrorActionPreference = 'Stop'
+$nl = [Environment]::NewLine
 
-# Stable build mode.
-# The previous implementation modified PlayerPage.xaml and PlayerPage.xaml.cs.
-# That injected a second Grid.Children collection and caused WMC0035 during
-# XAML compilation. Keep this patch intentionally inert until the crop/mask
-# controls are implemented outside PlayerPage's root visual tree.
+$coreRoot = Join-Path $PSScriptRoot '..\Screenbox\Screenbox.Core'
+$messagePath = Join-Path $coreRoot 'Messages\ChangeNormalizedCropMessage.cs'
+$viewModelPath = Join-Path $coreRoot 'ViewModels\PlayerElementViewModel.cs'
 
-Write-Host 'Mosuan player feature patch: stable no-op.'
+foreach ($path in @($messagePath, $viewModelPath)) {
+    if (!(Test-Path $path)) { throw "Required crop pipeline file not found: $path" }
+}
+
+# Add a message carrying a normalized source rectangle (0..1 coordinates).
+if (!(Test-Path $messagePath)) {
+    @'
+using CommunityToolkit.Mvvm.Messaging.Messages;
+using Windows.Foundation;
+
+namespace Screenbox.Core.Messages;
+
+public sealed class ChangeNormalizedCropMessage : ValueChangedMessage<Rect>
+{
+    public ChangeNormalizedCropMessage(Rect value) : base(value)
+    {
+    }
+}
+'@ | Set-Content -Path $messagePath -Encoding UTF8
+}
+
+# Extend the existing player view-model crop pipeline without changing the VLC renderer.
+$code = Get-Content -Raw -Encoding UTF8 $viewModelPath
+if (!$code.Contains('IRecipient<ChangeNormalizedCropMessage>')) {
+    $anchor = 'IRecipient<SettingsChangedMessage>'
+    if (!$code.Contains($anchor)) { throw 'PlayerElementViewModel recipient declaration anchor not found' }
+    $code = $code.Replace($anchor, $anchor + ',' + $nl + '    IRecipient<ChangeNormalizedCropMessage>')
+}
+if (!$code.Contains('Messenger.Register<ChangeNormalizedCropMessage>(this);')) {
+    $anchor = 'Messenger.Register<SettingsChangedMessage>(this);'
+    if (!$code.Contains($anchor)) { throw 'PlayerElementViewModel message registration anchor not found' }
+    $code = $code.Replace($anchor, $anchor + $nl + '        Messenger.Register<ChangeNormalizedCropMessage>(this);')
+}
+if (!$code.Contains('public void Receive(ChangeNormalizedCropMessage message)')) {
+    $anchor = '    public void Initialize(string[] swapChainOptions)'
+    if (!$code.Contains($anchor)) { throw 'PlayerElementViewModel Initialize anchor not found' }
+    $handler = @'
+    public void Receive(ChangeNormalizedCropMessage message)
+    {
+        if (VlcMediaPlayer is null) return;
+
+        Rect rect = message.Value;
+        if (rect.X < 0 || rect.Y < 0 || rect.Width <= 0 || rect.Height <= 0
+            || rect.X + rect.Width > 1 || rect.Y + rect.Height > 1)
+        {
+            return;
+        }
+
+        VlcMediaPlayer.NormalizedSourceRect = rect;
+    }
+
+'@
+    $code = $code.Replace($anchor, $handler + $anchor)
+}
+Set-Content -Path $viewModelPath -Value $code -Encoding UTF8
+
+Write-Host 'Mosuan crop pipeline v2 applied: normalized source-rectangle messages are supported.'
