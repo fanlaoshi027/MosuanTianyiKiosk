@@ -151,8 +151,8 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
         double bottom = top + MosuanCropSelection.Height;
         bool inside = _mosuanCropHasSelection
             && MosuanCropSelection.Visibility == Visibility.Visible
-            && current.X >= left && current.X <= right
-            && current.Y >= top && current.Y <= bottom;
+            && current.X >= left - 18 && current.X <= right + 18
+            && current.Y >= top - 18 && current.Y <= bottom + 18;
 
         _mosuanCropDragMode = 0; // New selection
         if (inside)
@@ -276,7 +276,8 @@ if (!$code.Contains('MosuanBeginFreeCrop_OnClick')) {
     private void MosuanCropOverlay_OnPointerCanceled(object sender, PointerRoutedEventArgs e)
     {
         _mosuanCropPointerCaptured = false;
-        MosuanCropOverlay.Visibility = Visibility.Collapsed;
+        MosuanCropOverlay.Opacity = 0;
+        MosuanCropOverlay.IsHitTestVisible = false;
         if (_mosuanCropHasSelection)
         {
             double width = MosuanCropOverlay.ActualWidth;
