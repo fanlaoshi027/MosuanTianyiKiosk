@@ -344,7 +344,8 @@ if (!$code.Contains('MosuanAspectRatio_OnClick')) {
     private void MosuanResetCrop_OnClick(object sender, RoutedEventArgs e)
     {
         _mosuanCropHasSelection = false;
-        MosuanCropOverlay.Visibility = Visibility.Collapsed;
+        MosuanCropOverlay.Opacity = 0;
+        MosuanCropOverlay.IsHitTestVisible = false;
         MosuanCropSelection.Visibility = Visibility.Collapsed;
         MosuanSetCropHandlesVisible(false);
         WeakReferenceMessenger.Default.Send(new ChangeAspectRatioMessage(new Size(0, 0)));
