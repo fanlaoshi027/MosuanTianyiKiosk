@@ -58,6 +58,7 @@ if (!$xaml.Contains('x:Name="MosuanCropOverlay"')) {
             Grid.Row="0"
             Grid.RowSpan="3"
             Grid.Column="0"
+            Margin="0,52,0,84"
             Panel.ZIndex="100"
             Background="#01000000"
             Visibility="Collapsed"
@@ -70,6 +71,7 @@ if (!$xaml.Contains('x:Name="MosuanCropOverlay"')) {
                 Fill="#22FF8A00"
                 Stroke="#FFFF8A00"
                 StrokeThickness="2"
+                IsHitTestVisible="False"
                 Visibility="Collapsed" />
         </Canvas>
 '@
