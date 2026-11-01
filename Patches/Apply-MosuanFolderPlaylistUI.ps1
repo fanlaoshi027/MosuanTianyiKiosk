@@ -17,6 +17,7 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="文件夹播放列表" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Button Content="最近播放" Click="FolderPlaylistRecent_Click" />
                     <Button Content="添加本地文件夹" Click="AddFolderPlaylist_Click" />
                     <Button Content="添加 SMB 共享" Click="AddNetworkFolderPlaylist_Click" />
                 </StackPanel>
@@ -103,6 +104,56 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
         }
 
         FolderPlaylistStatus.Text = $"操作失败：{detail}。如果这是网络共享，请检查网络连接；如果访问权限失效，可点击“重新授权”。";
+    }
+
+    private async void FolderPlaylistRecent_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var recent = _folderPlaylistService.GetRecentVideos().ToList();
+            if (recent.Count == 0)
+            {
+                FolderPlaylistStatus.Text = "还没有播放记录。";
+                return;
+            }
+
+            var list = new ListView
+            {
+                SelectionMode = ListViewSelectionMode.Single,
+                MaxHeight = 420,
+                MinWidth = 420,
+                ItemsSource = recent.Select(item =>
+                    $"{item.FileName}   ·   {item.PlaylistName}   ·   {item.PlayedAtText}").ToList()
+            };
+            var content = new StackPanel { Spacing = 6 };
+            content.Children.Add(new TextBlock
+            {
+                Text = "最多保留最近 50 条记录；选择后可从头继续播放。",
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap
+            });
+            content.Children.Add(list);
+
+            var dialog = new ContentDialog
+            {
+                Title = "最近播放",
+                Content = content,
+                PrimaryButtonText = "继续播放",
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Primary
+            };
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+            if (list.SelectedIndex < 0 || list.SelectedIndex >= recent.Count)
+            {
+                FolderPlaylistStatus.Text = "请先选择一条播放记录。";
+                return;
+            }
+
+            await _folderPlaylistService.PlayRecentAsync(recent[list.SelectedIndex].FilePath);
+            FolderPlaylistStatus.Text = "已从最近播放记录重新打开视频。";
+        }
+        catch (Exception exception) { ShowFolderPlaylistError(exception); }
     }
 
     private async void AddFolderPlaylist_Click(object sender, RoutedEventArgs e)
