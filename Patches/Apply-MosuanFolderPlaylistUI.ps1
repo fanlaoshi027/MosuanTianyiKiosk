@@ -151,24 +151,53 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
 
         try
         {
-            var files = _folderPlaylistService.GetFiles(id);
+            var files = _folderPlaylistService.GetFiles(id).ToList();
             if (files.Count == 0)
             {
                 FolderPlaylistStatus.Text = "当前播放列表没有视频，请先刷新。";
                 return;
             }
 
+            var visibleFiles = files.ToList();
+            var search = new TextBox
+            {
+                PlaceholderText = "输入视频名称筛选…",
+                MinWidth = 360,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
             var list = new ListView
             {
-                ItemsSource = files.Select(path => System.IO.Path.GetFileName(path)).ToList(),
                 SelectionMode = ListViewSelectionMode.Single,
                 MaxHeight = 420,
                 MinWidth = 360
             };
+            void ApplyFilter()
+            {
+                var keyword = search.Text?.Trim() ?? "";
+                visibleFiles = files.Where(path =>
+                    System.IO.Path.GetFileName(path).Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                list.ItemsSource = visibleFiles.Select(path =>
+                    $"{System.IO.Path.GetFileName(path)}   —   {System.IO.Path.GetDirectoryName(path)}").ToList();
+                list.SelectedIndex = -1;
+            }
+            search.TextChanged += (s, args) => ApplyFilter();
+            ApplyFilter();
+
+            var content = new StackPanel { Spacing = 6 };
+            content.Children.Add(search);
+            content.Children.Add(new TextBlock
+            {
+                Text = $"共 {files.Count} 个视频 · 可输入名称筛选",
+                Opacity = 0.7,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+            content.Children.Add(list);
+
             var dialog = new ContentDialog
             {
-                Title = $"{playlist.Name} · {files.Count} 个视频",
-                Content = list,
+                Title = $"{playlist.Name} · 视频列表",
+                Content = content,
                 PrimaryButtonText = "播放选中视频",
                 SecondaryButtonText = "播放全部",
                 CloseButtonText = "关闭",
@@ -177,12 +206,12 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
-                if (list.SelectedIndex < 0)
+                if (list.SelectedIndex < 0 || list.SelectedIndex >= visibleFiles.Count)
                 {
                     FolderPlaylistStatus.Text = "请先选择一个视频。";
                     return;
                 }
-                await _folderPlaylistService.PlayFileAsync(id, files[list.SelectedIndex]);
+                await _folderPlaylistService.PlayFileAsync(id, visibleFiles[list.SelectedIndex]);
                 FolderPlaylistStatus.Text = "已开始播放选中的视频。";
             }
             else if (result == ContentDialogResult.Secondary)
