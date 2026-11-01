@@ -42,10 +42,12 @@ namespace Screenbox.Controls;
 internal sealed unsafe class SwapChainPresentProbe : IDisposable
 {
     private const int PresentVtableIndex = 8;
+    private const int Present1VtableIndex = 22;
     private const int SwapChain1VtableLength = 29;
     private const uint PageExecuteReadWrite = 0x40;
 
     private static IntPtr s_originalPresent;
+    private static IntPtr s_originalPresent1;
     private static long s_presentCount;
 
     private readonly IntPtr _swapChain;
@@ -78,12 +80,15 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             Marshal.Copy(originalVtable, entries, 0, entries.Length);
 
             IntPtr originalPresent = entries[PresentVtableIndex];
-            if (originalPresent == IntPtr.Zero)
+            IntPtr originalPresent1 = entries[Present1VtableIndex];
+            if (originalPresent == IntPtr.Zero || originalPresent1 == IntPtr.Zero)
                 return null;
 
             clone = Marshal.AllocHGlobal(entries.Length * IntPtr.Size);
             entries[PresentVtableIndex] =
                 (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint, uint, int>)&Present;
+            entries[Present1VtableIndex] =
+                (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint, uint, IntPtr, int>)&Present1;
             Marshal.Copy(entries, 0, clone, entries.Length);
 
             if (!VirtualProtect(swapChain, (UIntPtr)IntPtr.Size, PageExecuteReadWrite, out uint oldProtect))
@@ -92,6 +97,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             try
             {
                 s_originalPresent = originalPresent;
+                s_originalPresent1 = originalPresent1;
                 Marshal.WriteIntPtr(swapChain, clone);
             }
             finally
@@ -119,6 +125,17 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             return unchecked((int)0x80004005); // E_FAIL
 
         return ((delegate* unmanaged[Stdcall]<IntPtr, uint, uint, int>)original)(self, syncInterval, flags);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int Present1(IntPtr self, uint syncInterval, uint flags, IntPtr presentParameters)
+    {
+        Interlocked.Increment(ref s_presentCount);
+        IntPtr original = s_originalPresent1;
+        if (original == IntPtr.Zero)
+            return unchecked((int)0x80004005); // E_FAIL
+
+        return ((delegate* unmanaged[Stdcall]<IntPtr, uint, uint, IntPtr, int>)original)(self, syncInterval, flags, presentParameters);
     }
 
     public void Dispose()
