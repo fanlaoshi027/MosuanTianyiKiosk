@@ -419,3 +419,17 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
     Set-Content -Path $csPath -Value $cs -Encoding UTF8
 }
 Write-Host 'Mosuan folder playlist page integration applied.'
+
+# Connect the existing SQLite playback-progress tracker to the active VLC player.
+$playerVmPath = Join-Path (Join-Path $PSScriptRoot '..\Screenbox\Screenbox.Core') 'ViewModels\PlayerElementViewModel.cs'
+$playerVm = Get-Content -Raw $playerVmPath
+if ($playerVm -notmatch 'MosuanPlaybackResumeIntegration') {
+    $playerVm = $playerVm.Replace('using Windows.Media.Playback;', 'using Windows.Media.Playback;' + $nl + 'using Windows.Storage;')
+    $playerVm = $playerVm.Replace('    private readonly ISystemMediaTransportControlsService _transportControlsService;', '    // MosuanPlaybackResumeIntegration' + $nl + '    private readonly IPlaybackProgressTracker _playbackProgressTracker;' + $nl + '    private readonly ISystemMediaTransportControlsService _transportControlsService;')
+    $playerVm = $playerVm.Replace('        ISystemMediaTransportControlsService transportControlsService,', '        ISystemMediaTransportControlsService transportControlsService,' + $nl + '        IPlaybackProgressTracker playbackProgressTracker,')
+    $playerVm = $playerVm.Replace('        _transportControlsService = transportControlsService;', '        _transportControlsService = transportControlsService;' + $nl + '        _playbackProgressTracker = playbackProgressTracker;' + $nl + '        _ = _playbackProgressTracker.LoadFromDiskAsync();')
+    $playerVm = $playerVm.Replace('            oldPlayer.PlaybackStateChanged -= OnPlaybackStateChanged;', '            oldPlayer.PlaybackStateChanged -= OnPlaybackStateChanged;' + $nl + '            oldPlayer.MediaOpened -= OnMediaOpened;')
+    $playerVm = $playerVm.Replace('                player.PlaybackStateChanged += OnPlaybackStateChanged;', '                player.PlaybackStateChanged += OnPlaybackStateChanged;' + $nl + '                player.MediaOpened += OnMediaOpened;')
+    $playerVm = $playerVm.Replace('    private void OnPositionChanged(IMediaPlayer sender, object? args)' + $nl + '    {', '    private string? GetCurrentMediaLocation(IMediaPlayer sender)' + $nl + '    {' + $nl + '        return sender.PlaybackItem?.OriginalSource is IStorageItem item && !string.IsNullOrWhiteSpace(item.Path)' + $nl + '            ? item.Path : null;' + $nl + '    }' + $nl + $nl + '    private void OnMediaOpened(IMediaPlayer sender, object? args)' + $nl + '    {' + $nl + '        var location = GetCurrentMediaLocation(sender);' + $nl + '        if (location is null) return;' + $nl + '        var position = _playbackProgressTracker.GetPosition(location);' + $nl + '        if (position > TimeSpan.FromSeconds(3) && sender.NaturalDuration > position + TimeSpan.FromSeconds(3))' + $nl + '            sender.Position = position;' + $nl + '    }' + $nl + $nl + '    private void OnPositionChanged(IMediaPlayer sender, object? args)' + $nl + '    {' + $nl + '        if (GetCurrentMediaLocation(sender) is { } location && sender.Position > TimeSpan.FromSeconds(1))' + $nl + '            _playbackProgressTracker.UpdateProgress(location, sender.Position);')
+    Set-Content -Path $playerVmPath -Value $playerVm -Encoding UTF8
+}
