@@ -56,8 +56,39 @@ public sealed class MosuanFolderPlaylistState
 /// Use StorageFolder APIs rather than Directory APIs so picked folders remain
 /// accessible inside the packaged app sandbox.
 /// </summary>
-public sealed class MosuanFolderPlaylistService
+public sealed class MosuanFolderPlaylistService : IRecipient<QueueCurrentItemChangedMessage>
 {
+    public MosuanFolderPlaylistService()
+    {
+        WeakReferenceMessenger.Default.Register<QueueCurrentItemChangedMessage>(this);
+    }
+
+    /// <summary>
+    /// Keep Mosuan's recent list aligned with the actual queue transitions,
+    /// including next/previous navigation and automatic playback.
+    /// </summary>
+    public void Receive(QueueCurrentItemChangedMessage message)
+    {
+        var current = message.Value;
+        if (current is null || string.IsNullOrWhiteSpace(current.Location)) return;
+        _ = RecordQueueTransitionAsync(current.Location);
+    }
+
+    private async Task RecordQueueTransitionAsync(string filePath)
+    {
+        try
+        {
+            var playlist = State.Playlists.FirstOrDefault(x =>
+                x.Files?.Any(path => string.Equals(path, filePath, StringComparison.OrdinalIgnoreCase)) == true);
+            if (playlist is null) return;
+            await RecordRecentAsync(playlist, filePath);
+        }
+        catch
+        {
+            // Recent history is best-effort; never interrupt playback.
+        }
+    }
+
     private const string StoreName = "mosuan-folder-playlists.json";
     private static readonly string[] VideoExtensions =
         { ".mp4", ".mkv", ".mov", ".avi", ".wmv", ".m4v", ".webm", ".ts", ".m2ts" };
