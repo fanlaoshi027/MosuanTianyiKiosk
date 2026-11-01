@@ -39,6 +39,8 @@ if ($xaml -notmatch 'FolderPlaylistList') {
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Content="播放" Tag="{Binding Id}" Click="FolderPlaylistPlay_Click" />
                                 <Button Content="重命名" Tag="{Binding Id}" Click="FolderPlaylistRename_Click" />
+                                <Button Content="上移" Tag="{Binding Id}" Click="FolderPlaylistMoveUp_Click" />
+                                <Button Content="下移" Tag="{Binding Id}" Click="FolderPlaylistMoveDown_Click" />
                                 <Button Content="刷新" Tag="{Binding Id}" Click="FolderPlaylistRefresh_Click" />
                                 <Button Content="重新授权" Tag="{Binding Id}" Click="FolderPlaylistReauthorize_Click" />
                                 <Button Content="移除" Tag="{Binding Id}" Click="FolderPlaylistRemove_Click" />
@@ -169,6 +171,32 @@ if ($cs -notmatch 'MosuanFolderPlaylistService') {
             }
         }
         catch (Exception exception) { ShowFolderPlaylistError(exception); }
+    }
+
+    private async void FolderPlaylistMoveUp_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string id)
+        {
+            try
+            {
+                if (await _folderPlaylistService.MoveAsync(id, -1))
+                    RefreshFolderPlaylistItems();
+            }
+            catch (Exception exception) { ShowFolderPlaylistError(exception); }
+        }
+    }
+
+    private async void FolderPlaylistMoveDown_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string id)
+        {
+            try
+            {
+                if (await _folderPlaylistService.MoveAsync(id, 1))
+                    RefreshFolderPlaylistItems();
+            }
+            catch (Exception exception) { ShowFolderPlaylistError(exception); }
+        }
     }
 
     private async void FolderPlaylistRefresh_Click(object sender, RoutedEventArgs e)
