@@ -91,7 +91,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
                 (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint, uint, IntPtr, int>)&Present1;
             Marshal.Copy(entries, 0, clone, entries.Length);
 
-            if (!VirtualProtect(swapChain, (UIntPtr)IntPtr.Size, PageExecuteReadWrite, out uint oldProtect))
+            if (VirtualProtect(swapChain, (UIntPtr)IntPtr.Size, PageExecuteReadWrite, out uint oldProtect) == 0)
                 throw new InvalidOperationException("VirtualProtect failed while installing the DXGI probe.");
 
             try
@@ -149,7 +149,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
             if (Marshal.ReadIntPtr(_swapChain) != _hookedVtable)
                 return;
 
-            if (!VirtualProtect(_swapChain, (UIntPtr)IntPtr.Size, PageExecuteReadWrite, out uint oldProtect))
+            if (VirtualProtect(_swapChain, (UIntPtr)IntPtr.Size, PageExecuteReadWrite, out uint oldProtect) == 0)
                 return;
 
             try
@@ -171,8 +171,7 @@ internal sealed unsafe class SwapChainPresentProbe : IDisposable
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool VirtualProtect(
+    private static extern int VirtualProtect(
         IntPtr address,
         UIntPtr size,
         uint newProtect,
