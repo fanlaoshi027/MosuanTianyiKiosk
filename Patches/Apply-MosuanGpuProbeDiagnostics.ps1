@@ -12,6 +12,43 @@ $code = Get-Content -Raw -Encoding UTF8 $probePath
 $nl = [Environment]::NewLine
 
 # Track whether the instance hook is currently installed, separately from frame counts.
+# Record non-exceptional install failures too; zero frame counts alone are ambiguous.
+$installStart = '        if (swapChain == IntPtr.Zero)'
+$installOld = $installStart + [Environment]::NewLine + '            return null;' + [Environment]::NewLine + '        }'
+$installNew = @'
+        Interlocked.Exchange(ref s_lastSwapChain, swapChain.ToInt64());
+        Interlocked.Exchange(ref s_lastInstallError, null);
+        if (swapChain == IntPtr.Zero)
+        {
+            Interlocked.Exchange(ref s_lastInstallError, "SwapChain 指针为空。");
+            return null;
+        }
+'@
+if ($code.Contains($installOld) -and !$code.Contains('SwapChain 指针为空。')) { $code = $code.Replace($installOld, $installNew.TrimEnd()) }
+$nullVtable = @'
+            if (originalVtable == IntPtr.Zero)
+                return null;
+'@
+$nullVtableNew = @'
+            if (originalVtable == IntPtr.Zero)
+            {
+                Interlocked.Exchange(ref s_lastInstallError, "SwapChain vtable 指针为空。");
+                return null;
+            }
+'@
+if ($code.Contains($nullVtable)) { $code = $code.Replace($nullVtable, $nullVtableNew.TrimEnd()) }
+$nullMethods = @'
+            if (originalPresent == IntPtr.Zero || originalPresent1 == IntPtr.Zero)
+                return null;
+'@
+$nullMethodsNew = @'
+            if (originalPresent == IntPtr.Zero || originalPresent1 == IntPtr.Zero)
+            {
+                Interlocked.Exchange(ref s_lastInstallError, "Present 或 Present1 原始函数指针为空。");
+                return null;
+            }
+'@
+if ($code.Contains($nullMethods)) { $code = $code.Replace($nullMethods, $nullMethodsNew.TrimEnd()) }
 if (!$code.Contains('private static int s_activeHookCount;')) {
     $anchor = '    private static long s_present1Count;'
     if (!$code.Contains($anchor)) { throw 'GPU probe counter anchor not found.' }
