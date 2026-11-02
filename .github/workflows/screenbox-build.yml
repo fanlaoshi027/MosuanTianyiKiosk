@@ -67,6 +67,9 @@ jobs:
       - name: Apply Mosuan control bar polish
         shell: pwsh
         run: .\Patches\Apply-MosuanControlBarPolish.ps1
+      - name: Apply Mosuan direct video playback
+        shell: pwsh
+        run: .\Patches\Apply-MosuanDirectVideoPlayback.ps1
       - name: Apply Mosuan custom player UI
         shell: pwsh
         run: .\Patches\Apply-MosuanCustomPlayerUI.ps1
