@@ -3,8 +3,9 @@ $ErrorActionPreference = 'Stop'
 $videoViewRoot = Join-Path $PSScriptRoot '..\Screenbox\Screenbox.VideoView'
 $probePath = Join-Path $videoViewRoot 'SwapChainPresentProbe.cs'
 $playerCodePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Pages\PlayerPage.xaml.cs'
+$videoViewPath = Join-Path $videoViewRoot 'VideoView.cs'
 
-foreach ($path in @($probePath, $playerCodePath)) {
+foreach ($path in @($probePath, $playerCodePath, $videoViewPath)) {
     if (!(Test-Path $path)) { throw "Required GPU probe diagnostic target not found: $path" }
 }
 
@@ -101,12 +102,43 @@ if ($code.Contains($disposeAnchor)) {
 }
 Set-Content -Path $probePath -Value $code -Encoding UTF8
 
+# Read-only back-buffer inspection: GetBuffer + ID3D11Texture2D.Description only.
+# No immediate-context calls are made here, so this diagnostic cannot disturb VLC's pipeline.
+$videoView = Get-Content -Raw -Encoding UTF8 $videoViewPath
+if (!$videoView.Contains('GetBackBufferDiagnostics()')) {
+    $methodAnchor = '    private void DestroySwapChain()'
+    if (!$videoView.Contains($methodAnchor)) { throw 'VideoView teardown method anchor not found.' }
+    $method = @'
+    public string GetBackBufferDiagnostics()
+    {
+        if (_swapChain is null)
+        {
+            return "后台缓冲区：SwapChain 尚未创建。";
+        }
+
+        try
+        {
+            using var backBuffer = _swapChain.GetBuffer<ID3D11Texture2D>(0);
+            var description = backBuffer.Description;
+            return $"后台缓冲区：{description.Width} × {description.Height}\\n格式：{description.Format}\\n采样数：{description.SampleDescription.Count}\\nMip：{description.MipLevels}\\nBindFlags：{description.BindFlags}";
+        }
+        catch (Exception ex)
+        {
+            return $"后台缓冲区读取失败：{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+'@
+    $videoView = $videoView.Replace($methodAnchor, $method + $methodAnchor)
+    Set-Content -Path $videoViewPath -Value $videoView -Encoding UTF8
+}
+
 # Expand the existing diagnostic dialog. It reports hook state, target pointer, frame
 # callbacks, and the last installation exception instead of making zero counts ambiguous.
 $playerCode = Get-Content -Raw -Encoding UTF8 $playerCodePath
 $old = '            Content = $"Present：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}",'
 $new = @'
-            Content = $"拦截状态：{Screenbox.Controls.SwapChainPresentProbe.HookStatus}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}",
+            Content = $"拦截状态：{Screenbox.Controls.SwapChainPresentProbe.HookStatus}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}\\n{VideoView.GetBackBufferDiagnostics()}",
 '@
 if ($playerCode.Contains($old)) {
     $playerCode = $playerCode.Replace($old, $new.TrimEnd())
