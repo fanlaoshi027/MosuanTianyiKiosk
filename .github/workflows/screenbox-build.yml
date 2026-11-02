@@ -82,6 +82,9 @@ jobs:
       - name: Apply Mosuan crop and mask features
         shell: pwsh
         run: .\Patches\Apply-MosuanPlayerFeatures.ps1
+      - name: Apply Mosuan crop aspect fix
+        shell: pwsh
+        run: .\Patches\Apply-MosuanCropAspectFix.ps1
       - name: Apply Mosuan normalized layout rules
         shell: pwsh
         run: .\Patches\Apply-MosuanLayoutRules.ps1
