@@ -17,7 +17,7 @@ if (!$controls.Contains('MosuanControlDeck')) {
     if (!$controls.Contains($resourceAnchor)) { throw 'PlayerControls resource dictionary anchor not found.' }
 
     $styles = @'
-            <Style x:Key="PlayerButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+            <Style x:Key="PlayerButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
                 <Setter Property="Background" Value="#1B2736" />
                 <Setter Property="Foreground" Value="#E8EEF5" />
                 <Setter Property="BorderBrush" Value="#34465B" />
@@ -27,7 +27,7 @@ if (!$controls.Contains('MosuanControlDeck')) {
                 <Setter Property="Height" Value="42" />
                 <Setter Property="Padding" Value="8" />
             </Style>
-            <Style x:Key="PlayerToggleButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+            <Style x:Key="PlayerToggleButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource SubtleToggleButtonStyle}">
                 <Setter Property="Background" Value="#1B2736" />
                 <Setter Property="Foreground" Value="#C9D4E2" />
                 <Setter Property="BorderBrush" Value="#34465B" />
@@ -328,7 +328,7 @@ if (!$controls.Contains('x:Name="MosuanControlDeck"')) {
         <Grid Grid.Row="3" Visibility="Collapsed" />
 '@
     # Compact mode moves the seek bar to the reserved final row.
-    $visualStates = $visualStates.Replace('Value="2"', 'Value="3"')
+    $visualStates = $visualStates.Replace('Target="SeekBar.(Grid.Row)" Value="2"', 'Target="SeekBar.(Grid.Row)" Value="3"')
     $newRoot += $visualStates + '    </Grid>' + [Environment]::NewLine + '</UserControl>'
     $controls = $controls.Substring(0, $start) + $newRoot
     Set-Content -Path $controlsPath -Value $controls -Encoding UTF8
