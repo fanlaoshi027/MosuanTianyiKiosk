@@ -120,7 +120,7 @@ if (!$videoView.Contains('GetBackBufferDiagnostics()')) {
         {
             using var backBuffer = _swapChain.GetBuffer<ID3D11Texture2D>(0);
             var description = backBuffer.Description;
-            return $"后台缓冲区：{description.Width} × {description.Height}\\n格式：{description.Format}\\n采样数：{description.SampleDescription.Count}\\nMip：{description.MipLevels}\\nBindFlags：{description.BindFlags}";
+            return $"后台缓冲区：{description.Width} × {description.Height}\n格式：{description.Format}\n采样数：{description.SampleDescription.Count}\nMip：{description.MipLevels}\nBindFlags：{description.BindFlags}";
         }
         catch (Exception ex)
         {
@@ -138,7 +138,7 @@ if (!$videoView.Contains('GetBackBufferDiagnostics()')) {
 $playerCode = Get-Content -Raw -Encoding UTF8 $playerCodePath
 $old = '            Content = $"Present：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}",'
 $new = @'
-            Content = $"拦截状态：{Screenbox.Controls.SwapChainPresentProbe.HookStatus}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}\\n{VideoView.GetBackBufferDiagnostics()}",
+            Content = $"拦截状态：{Screenbox.Controls.SwapChainPresentProbe.HookStatus}\n活动钩子：{Screenbox.Controls.SwapChainPresentProbe.ActiveHookCount}\nSwapChain：{Screenbox.Controls.SwapChainPresentProbe.LastSwapChainAddress}\nPresent：{Screenbox.Controls.SwapChainPresentProbe.PresentCount}\nPresent1：{Screenbox.Controls.SwapChainPresentProbe.Present1Count}\n安装错误：{(string.IsNullOrWhiteSpace(Screenbox.Controls.SwapChainPresentProbe.LastInstallError) ? "无" : Screenbox.Controls.SwapChainPresentProbe.LastInstallError)}\n{VideoView.GetBackBufferDiagnostics()}",
 '@
 if ($playerCode.Contains($old)) {
     $playerCode = $playerCode.Replace($old, $new.TrimEnd())
