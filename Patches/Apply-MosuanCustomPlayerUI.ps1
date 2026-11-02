@@ -334,25 +334,6 @@ if (!$controls.Contains('x:Name="MosuanControlDeck"')) {
     Set-Content -Path $controlsPath -Value $controls -Encoding UTF8
 }
 
-# Make the title area read as Mosuan, not the stock Screenbox gradient header.
-$player = Get-Content -Raw -Encoding UTF8 $playerPath
-$player = $player.Replace('MinHeight="80"' + [Environment]::NewLine + '            Background="{ThemeResource PlayerTitleBarBackgroundBrush}"',
-    'MinHeight="68"' + [Environment]::NewLine + '            Background="#111B29"')
-$player = $player.Replace('Margin="16,-12,0,16"', 'Margin="18,-6,0,8"')
-if (!$player.Contains('Text="墨算播放器"')) {
-    $anchor = '                    <TextBlock' + [Environment]::NewLine + '                        x:Name="TitleBarTitleTextBlock"'
-    if (!$player.Contains($anchor)) { throw 'Player title text anchor not found.' }
-    $brand = @'
-                    <TextBlock
-                        Text="墨算播放器"
-                        FontSize="10"
-                        FontWeight="SemiBold"
-                        CharacterSpacing="120"
-                        Foreground="#F28C28"
-                        Margin="0,0,0,2" />
-'@
-    $player = $player.Replace($anchor, $brand + $anchor)
-}
-Set-Content -Path $playerPath -Value $player -Encoding UTF8
+# Keep PlayerPage.xaml untouched: all player branding is inside the redesigned control deck.
 
-Write-Host 'Mosuan custom player UI applied: branded title strip and a redesigned floating transport deck.'
+Write-Host 'Mosuan custom player UI applied: redesigned floating transport deck.'
