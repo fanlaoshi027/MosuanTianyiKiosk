@@ -43,6 +43,9 @@ jobs:
       - name: Apply Mosuan library surfaces
         shell: pwsh
         run: .\Patches\Apply-MosuanLibrarySurface.ps1
+      - name: Apply Mosuan open player on video
+        shell: pwsh
+        run: .\Patches\Apply-MosuanOpenPlayerOnVideo.ps1
       - name: Apply Mosuan home layout
         shell: pwsh
         run: .\Patches\Apply-MosuanHomeLayout.ps1
