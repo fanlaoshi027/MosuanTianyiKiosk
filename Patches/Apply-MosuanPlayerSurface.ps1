@@ -14,7 +14,7 @@ $replacements = @(
         New = '<Border' + [Environment]::NewLine + '            x:Name="PlayerControlsBackground"' + [Environment]::NewLine + '            Grid.Row="2"' + [Environment]::NewLine + '            Grid.Column="0"' + [Environment]::NewLine + '            Background="#111B29"'
     },
     @{
-        Old = '<sbuc:TitleBar' + [Environment]::NewLine + '            x:Name="PlayerTitleBar"' + [Environment]::NewLine + '            MinHeight="80"' + [Environment]::NewLine + '            Background="{ThemeResource PlayerTitleBarBackgroundBrush}">'
+        Old = '<sbuc:TitleBar' + [Environment]::NewLine + '            x:Name="PlayerTitleBar"' + [Environment]::NewLine + '            MinHeight="72"' + [Environment]::NewLine + '            Background="{ThemeResource PlayerTitleBarBackgroundBrush}">'
         New = '<sbuc:TitleBar' + [Environment]::NewLine + '            x:Name="PlayerTitleBar"' + [Environment]::NewLine + '            MinHeight="72"' + [Environment]::NewLine + '            Background="#111B29">'
     },
     @{
