@@ -77,9 +77,7 @@ if (!$page.Contains('private Rect MosuanGetVideoContentRect()')) {
             return new Rect(0, 0, viewWidth, viewHeight);
         }
 
-        Rect source = VideoView.ViewModel.VlcPlayer is not null
-            ? ((Screenbox.Core.Playback.VlcMediaPlayer)VideoView.ViewModel.VlcPlayer).NormalizedSourceRect
-            : new Rect(0, 0, 1, 1);
+        Rect source = VideoView.ViewModel.CurrentNormalizedSourceRect;
         double sourceWidth = player.NaturalVideoWidth * source.Width;
         double sourceHeight = player.NaturalVideoHeight * source.Height;
         if (sourceWidth <= 0 || sourceHeight <= 0) return new Rect(0, 0, viewWidth, viewHeight);
@@ -293,6 +291,15 @@ Set-Content -Path $pagePath -Value $page -Encoding UTF8
 # The message now carries image-relative percentages. Compose them directly with
 # the current normalized source rectangle; do not infer percentages from window size.
 $vm = Get-Content -Raw -Encoding UTF8 $viewModelPath
+if (!$vm.Contains('CurrentNormalizedSourceRect')) {
+    $anchor = '    public LibVLCSharp.Shared.MediaPlayer? VlcPlayer =>'
+    $index = $vm.IndexOf($anchor, [StringComparison]::Ordinal)
+    if ($index -lt 0) { throw 'PlayerElementViewModel VlcPlayer property anchor not found' }
+    $lineEnd = $vm.IndexOf([Environment]::NewLine, $index)
+    if ($lineEnd -lt 0) { throw 'PlayerElementViewModel VlcPlayer property line end not found' }
+    $property = [Environment]::NewLine + '    public Rect CurrentNormalizedSourceRect => VlcMediaPlayer?.NormalizedSourceRect ?? new Rect(0, 0, 1, 1);'
+    $vm = $vm.Insert($lineEnd, $property)
+}
 $receive = @'
     public void Receive(ChangeNormalizedCropMessage message)
     {
