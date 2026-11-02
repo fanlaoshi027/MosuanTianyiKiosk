@@ -262,8 +262,11 @@ $released = @'
                 Math.Clamp((top - bounds.Top) / bounds.Height, 0, 1),
                 Math.Clamp(cropWidth / bounds.Width, 0, 1),
                 Math.Clamp(cropHeight / bounds.Height, 0, 1));
-            _mosuanCropHasSelection = true;
             WeakReferenceMessenger.Default.Send(new ChangeNormalizedCropMessage(_mosuanCropViewportRect));
+            // VLC now displays the selected source rectangle as the new full frame.
+            // The next crop gesture therefore starts fresh against that current frame.
+            _mosuanCropViewportRect = new Rect(0, 0, 1, 1);
+            _mosuanCropHasSelection = false;
         }
 
         ViewModel.ControlsHidden = false;
