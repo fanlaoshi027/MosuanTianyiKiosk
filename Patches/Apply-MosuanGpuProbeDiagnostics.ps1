@@ -4,8 +4,9 @@ $videoViewRoot = Join-Path $PSScriptRoot '..\Screenbox\Screenbox.VideoView'
 $probePath = Join-Path $videoViewRoot 'SwapChainPresentProbe.cs'
 $playerCodePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Pages\PlayerPage.xaml.cs'
 $videoViewPath = Join-Path $videoViewRoot 'VideoView.cs'
+$playerElementCodePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Controls\PlayerElement.xaml.cs'
 
-foreach ($path in @($probePath, $playerCodePath, $videoViewPath)) {
+foreach ($path in @($probePath, $playerCodePath, $videoViewPath, $playerElementCodePath)) {
     if (!(Test-Path $path)) { throw "Required GPU probe diagnostic target not found: $path" }
 }
 
@@ -131,6 +132,23 @@ if (!$videoView.Contains('GetBackBufferDiagnostics()')) {
 '@
     $videoView = $videoView.Replace($methodAnchor, $method + $methodAnchor)
     Set-Content -Path $videoViewPath -Value $videoView -Encoding UTF8
+}
+
+# PlayerPage's named VideoView is a PlayerElement wrapper, not the low-level
+# VideoView SwapChainPanel. Expose the low-level diagnostic through that wrapper.
+$playerElementCode = Get-Content -Raw -Encoding UTF8 $playerElementCodePath
+if (!$playerElementCode.Contains('GetBackBufferDiagnostics()')) {
+    $playerElementAnchor = '    private void VlcVideoView_OnInitialized(object sender, VideoViewInitializedEventArgs e)'
+    if (!$playerElementCode.Contains($playerElementAnchor)) { throw 'PlayerElement initialization handler anchor not found.' }
+    $playerElementMethod = @'
+    public string GetBackBufferDiagnostics()
+    {
+        return VlcVideoView.GetBackBufferDiagnostics();
+    }
+
+'@
+    $playerElementCode = $playerElementCode.Replace($playerElementAnchor, $playerElementMethod + $playerElementAnchor)
+    Set-Content -Path $playerElementCodePath -Value $playerElementCode -Encoding UTF8
 }
 
 # Expand the existing diagnostic dialog. It reports hook state, target pointer, frame
