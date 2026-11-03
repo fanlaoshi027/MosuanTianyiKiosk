@@ -295,7 +295,7 @@ Set-Content -Path $pagePath -Value $page -Encoding UTF8
 # the current normalized source rectangle; do not infer percentages from window size.
 $vm = Get-Content -Raw -Encoding UTF8 $viewModelPath
 if (!$vm.Contains('VlcMediaPlayer? VlcMediaPlayer')) {
-    $anchor = '    public LibVLCSharp.Shared.MediaPlayer? VlcPlayer =>'
+    $anchor = '    public MediaPlayer? VlcPlayer =>'
     $index = $vm.IndexOf($anchor, [StringComparison]::Ordinal)
     if ($index -lt 0) { throw 'PlayerElementViewModel VlcPlayer property anchor not found' }
     $vm = $vm.Insert($index, '    private VlcMediaPlayer? VlcMediaPlayer => _playerContext.MediaPlayer as VlcMediaPlayer;' + [Environment]::NewLine)
