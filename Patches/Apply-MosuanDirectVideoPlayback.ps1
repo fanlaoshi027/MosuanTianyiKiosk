@@ -8,7 +8,7 @@ $source = Get-Content -Raw -Encoding UTF8 $path
 $old = 'bool shouldBeVisible = _settingsService.PlayerAutoResize == PlayerAutoResizeOption.Always && !AudioOnly;'
 $new = 'bool shouldBeVisible = !AudioOnly || _settingsService.PlayerAutoResize == PlayerAutoResizeOption.Always;'
 
-if (!$source.Contains($new)) {
+if (!$source.Contains($new) -and !$source.Contains('bool shouldBeVisible = !AudioOnly;')) {
     if (!$source.Contains($old)) { throw 'Direct video playback anchor not found in PlayerPageViewModel.' }
     $source = $source.Replace($old, $new)
 }
