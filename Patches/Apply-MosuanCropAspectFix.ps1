@@ -301,7 +301,7 @@ if (!$vm.Contains('VlcMediaPlayer? VlcMediaPlayer')) {
     $vm = $vm.Insert($index, '    private VlcMediaPlayer? VlcMediaPlayer => _playerContext.MediaPlayer as VlcMediaPlayer;' + [Environment]::NewLine)
 }
 if (!$vm.Contains('CurrentNormalizedSourceRect')) {
-    $anchor = '    public LibVLCSharp.Shared.MediaPlayer? VlcPlayer =>'
+    $anchor = '    public MediaPlayer? VlcPlayer =>'
     $index = $vm.IndexOf($anchor, [StringComparison]::Ordinal)
     if ($index -lt 0) { throw 'PlayerElementViewModel VlcPlayer property anchor not found' }
     $lineEnd = $vm.IndexOf([Environment]::NewLine, $index)
