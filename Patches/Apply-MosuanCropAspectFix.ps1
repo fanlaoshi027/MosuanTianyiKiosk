@@ -70,16 +70,16 @@ if (!$page.Contains('private Rect MosuanGetVideoContentRect()')) {
     {
         double viewWidth = MosuanCropOverlay.ActualWidth;
         double viewHeight = MosuanCropOverlay.ActualHeight;
-        var player = VideoView.ViewModel.VlcPlayer;
-        if (viewWidth <= 0 || viewHeight <= 0 || player is null
-            || player.NaturalVideoWidth == 0 || player.NaturalVideoHeight == 0)
+        int naturalWidth = VideoView.ViewModel.CurrentNaturalVideoWidth;
+        int naturalHeight = VideoView.ViewModel.CurrentNaturalVideoHeight;
+        if (viewWidth <= 0 || viewHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0)
         {
             return new Rect(0, 0, viewWidth, viewHeight);
         }
 
         Rect source = VideoView.ViewModel.CurrentNormalizedSourceRect;
-        double sourceWidth = player.NaturalVideoWidth * source.Width;
-        double sourceHeight = player.NaturalVideoHeight * source.Height;
+        double sourceWidth = naturalWidth * source.Width;
+        double sourceHeight = naturalHeight * source.Height;
         if (sourceWidth <= 0 || sourceHeight <= 0) return new Rect(0, 0, viewWidth, viewHeight);
 
         double scale = Math.Min(viewWidth / sourceWidth, viewHeight / sourceHeight);
@@ -306,7 +306,7 @@ if (!$vm.Contains('CurrentNormalizedSourceRect')) {
     if ($index -lt 0) { throw 'PlayerElementViewModel VlcPlayer property anchor not found' }
     $lineEnd = $vm.IndexOf([Environment]::NewLine, $index)
     if ($lineEnd -lt 0) { throw 'PlayerElementViewModel VlcPlayer property line end not found' }
-    $property = [Environment]::NewLine + '    public Rect CurrentNormalizedSourceRect => VlcMediaPlayer?.NormalizedSourceRect ?? new Rect(0, 0, 1, 1);'
+    $property = [Environment]::NewLine + '    public Rect CurrentNormalizedSourceRect => VlcMediaPlayer?.NormalizedSourceRect ?? new Rect(0, 0, 1, 1);' + [Environment]::NewLine + '    public int CurrentNaturalVideoWidth => VlcMediaPlayer?.NaturalVideoWidth ?? 0;' + [Environment]::NewLine + '    public int CurrentNaturalVideoHeight => VlcMediaPlayer?.NaturalVideoHeight ?? 0;'
     $vm = $vm.Insert($lineEnd, $property)
 }
 $receive = @'
