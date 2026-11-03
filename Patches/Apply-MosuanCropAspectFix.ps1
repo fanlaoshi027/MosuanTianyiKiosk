@@ -306,7 +306,7 @@ if (!$vm.Contains('CurrentNormalizedSourceRect')) {
     if ($index -lt 0) { throw 'PlayerElementViewModel VlcPlayer property anchor not found' }
     $lineEnd = $vm.IndexOf([Environment]::NewLine, $index)
     if ($lineEnd -lt 0) { throw 'PlayerElementViewModel VlcPlayer property line end not found' }
-    $property = [Environment]::NewLine + '    public Rect CurrentNormalizedSourceRect => VlcMediaPlayer?.NormalizedSourceRect ?? new Rect(0, 0, 1, 1);' + [Environment]::NewLine + '    public int CurrentNaturalVideoWidth => VlcMediaPlayer?.NaturalVideoWidth ?? 0;' + [Environment]::NewLine + '    public int CurrentNaturalVideoHeight => VlcMediaPlayer?.NaturalVideoHeight ?? 0;'
+    $property = [Environment]::NewLine + '    public Rect CurrentNormalizedSourceRect => VlcMediaPlayer?.NormalizedSourceRect ?? new Rect(0, 0, 1, 1);' + [Environment]::NewLine + '    public uint CurrentNaturalVideoWidth => VlcMediaPlayer?.NaturalVideoWidth ?? 0u;' + [Environment]::NewLine + '    public uint CurrentNaturalVideoHeight => VlcMediaPlayer?.NaturalVideoHeight ?? 0u;'
     $vm = $vm.Insert($lineEnd, $property)
 }
 $receive = @'
