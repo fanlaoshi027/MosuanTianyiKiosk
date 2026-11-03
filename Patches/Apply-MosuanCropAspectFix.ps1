@@ -70,8 +70,8 @@ if (!$page.Contains('private Rect MosuanGetVideoContentRect()')) {
     {
         double viewWidth = MosuanCropOverlay.ActualWidth;
         double viewHeight = MosuanCropOverlay.ActualHeight;
-        int naturalWidth = VideoView.ViewModel.CurrentNaturalVideoWidth;
-        int naturalHeight = VideoView.ViewModel.CurrentNaturalVideoHeight;
+        uint naturalWidth = VideoView.ViewModel.CurrentNaturalVideoWidth;
+        uint naturalHeight = VideoView.ViewModel.CurrentNaturalVideoHeight;
         if (viewWidth <= 0 || viewHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0)
         {
             return new Rect(0, 0, viewWidth, viewHeight);
