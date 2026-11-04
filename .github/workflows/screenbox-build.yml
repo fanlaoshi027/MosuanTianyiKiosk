@@ -94,6 +94,9 @@ jobs:
       - name: Apply Mosuan GPU present probe
         shell: pwsh
         run: .\Patches\Apply-MosuanGpuPresentProbe.ps1
+      - name: Compile and embed Mosuan GPU shaders
+        shell: pwsh
+        run: .\Patches\Compile-MosuanGpuShaders.ps1
       - name: Apply Mosuan GPU probe diagnostics
         shell: pwsh
         run: .\Patches\Apply-MosuanGpuProbeDiagnostics.ps1
