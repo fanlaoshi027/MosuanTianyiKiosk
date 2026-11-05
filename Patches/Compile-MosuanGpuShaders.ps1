@@ -7,8 +7,8 @@ $projectFile = Join-Path $projectRoot 'Screenbox.VideoView.csproj'
 if (!(Test-Path $source)) { throw "Shader source not found: $source" }
 if (!(Test-Path $projectFile)) { throw "VideoView project not found: $projectFile" }
 
-$sdkRoot = Join-Path \${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-$fxc = Get-ChildItem -Path $sdkRoot -Directory |
+$sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+$fxc = Get-ChildItem -Path $sdkRoot | Where-Object { $_.PSIsContainer } |
     Sort-Object { try { [version]$_.Name } catch { [version]'0.0' } } -Descending |
     ForEach-Object { Join-Path $_.FullName 'x64\fxc.exe' } |
     Where-Object { Test-Path $_ } |
