@@ -106,6 +106,9 @@ jobs:
       - name: Apply Mosuan GPU intermediate surface
         shell: pwsh
         run: .\Patches\Apply-MosuanGpuIntermediateSurface.ps1
+      - name: Apply Mosuan GPU pipeline states
+        shell: pwsh
+        run: .\Patches\Apply-MosuanGpuPipelineStates.ps1
       - name: Update package manifest
         shell: pwsh
         run: .\Screenbox\scripts\Update-AppxManifest.ps1 -Identity Sideload
