@@ -100,3 +100,26 @@ if ($code.Contains($disposeAnchor) -and !$code.Contains('_mosuanIntermediateRend
 }
 Set-Content -Path $path -Value $code -Encoding UTF8
 Write-Host 'Mosuan intermediate GPU surface initialized with a separate shader-readable texture and render-target view. No VLC frame is modified in this stage.'
+
+$wrapperPath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Controls\PlayerElement.xaml.cs'
+$pagePath = Join-Path $PSScriptRoot '..\Screenbox\Screenbox\Pages\PlayerPage.xaml.cs'
+$wrapper = Get-Content -Raw -Encoding UTF8 $wrapperPath
+if (!$wrapper.Contains('GetIntermediateSurfaceDiagnostics()')) {
+    $anchor = '    public string GetShaderDiagnostics()'
+    if (!$wrapper.Contains($anchor)) { throw 'PlayerElement shader diagnostic anchor not found.' }
+    $method = @'
+    public string GetIntermediateSurfaceDiagnostics()
+    {
+        return VlcVideoView.GetIntermediateSurfaceDiagnostics();
+    }
+
+'@
+    $wrapper = $wrapper.Replace($anchor, $method + $anchor)
+    Set-Content -Path $wrapperPath -Value $wrapper -Encoding UTF8
+}
+$page = Get-Content -Raw -Encoding UTF8 $pagePath
+$anchor = '{VideoView.GetShaderDiagnostics()}'
+if ($page.Contains($anchor) -and !$page.Contains('{VideoView.GetIntermediateSurfaceDiagnostics()}')) {
+    $page = $page.Replace($anchor, $anchor + '\n{VideoView.GetIntermediateSurfaceDiagnostics()}')
+    Set-Content -Path $pagePath -Value $page -Encoding UTF8
+}
